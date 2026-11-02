@@ -168,7 +168,8 @@ pub fn apply(ctx: &egui::Context, t: &Tokens) {
         s.text_styles.insert(egui::TextStyle::Body, font(13.0));
         s.text_styles.insert(egui::TextStyle::Button, font(13.0));
         s.text_styles.insert(egui::TextStyle::Small, font(11.0));
-        s.text_styles.insert(egui::TextStyle::Heading, font(18.0));
+        s.text_styles.insert(egui::TextStyle::Heading, bold(18.0));
+        s.text_styles.insert(egui::TextStyle::Monospace, egui::FontId::monospace(12.0));
     });
 }
 

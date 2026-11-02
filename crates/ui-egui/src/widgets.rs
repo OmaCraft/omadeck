@@ -11,6 +11,12 @@ use crate::theme::{self, Tokens};
 /// Height of the ribbon's content area.
 pub const RIBBON_H: f32 = 66.0;
 
+/// Large-button label size (OmaCraft chrome spec, `docs/ui-consistency.md`).
+pub const BIG_LABEL: f32 = 11.5;
+
+/// Small-button, combo and inline ribbon label size (OmaCraft chrome spec).
+pub const SMALL_LABEL: f32 = 12.5;
+
 fn bg(ui: &Ui, r: &Response, selected: bool, t: &Tokens) -> Option<Color32> {
     if !r.sense.senses_click() && !r.sense.senses_drag() {
         return None;
@@ -50,7 +56,7 @@ fn big_button_width(text_w: f32, split: bool) -> f32 {
 /// the chevron at the end of the label row opens the menu.
 pub fn big_button_ex(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, split: bool, selected: bool) -> (Response, Option<Response>) {
     let t = Tokens::get(ui.ctx());
-    let font = theme::font(11.0);
+    let font = theme::font(BIG_LABEL);
     let lines: Vec<&str> = wrap_label(label);
     let text_w = lines.iter().map(|l| ui.fonts_mut(|f| f.layout_no_wrap(l.to_string(), font.clone(), t.text).size().x)).fold(0.0f32, f32::max);
     let w = big_button_width(text_w, split);
@@ -149,7 +155,7 @@ pub fn small_button_named(
     split: bool,
 ) -> (Response, Option<Response>) {
     let t = Tokens::get(ui.ctx());
-    let font = theme::font(12.0);
+    let font = theme::font(SMALL_LABEL);
     let tw = if label.is_empty() { 0.0 } else { ui.fonts_mut(|f| f.layout_no_wrap(label.to_string(), font.clone(), t.text).size().x) + 5.0 };
     let arrow_w = if split { 12.0 } else { 0.0 };
     let w = 24.0 + tw + arrow_w;
@@ -245,7 +251,7 @@ fn split_popup_id(main: &Response) -> egui::Id {
 /// [`small_button`] items around it.
 pub fn check_item(ui: &mut Ui, label: &str, enabled: bool, on: bool) -> Response {
     let t = Tokens::get(ui.ctx());
-    let font = theme::font(12.0);
+    let font = theme::font(SMALL_LABEL);
     let tw = ui.fonts_mut(|f| f.layout_no_wrap(label.to_string(), font.clone(), t.text).size().x) + 5.0;
     let (rect, resp) = ui.allocate_exact_size(vec2(24.0 + tw, 22.0), if enabled { Sense::click() } else { Sense::hover() });
     resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, enabled, on, label));
@@ -346,7 +352,7 @@ pub fn dropdown(ui: &mut Ui, id: &str, current: &str, width: f32, enabled: bool,
         pos2(rect.min.x + 6.0, rect.center().y),
         Align2::LEFT_CENTER,
         current,
-        theme::font(12.0),
+        theme::font(SMALL_LABEL),
         if enabled { t.text } else { t.text_faint },
     );
     chevron(&painter, pos2(rect.max.x - 9.0, rect.center().y), 3.0, t.text_dim);
@@ -523,7 +529,9 @@ pub fn spinner(ui: &mut Ui, id: &str, label: &str, value: f64, step: f64, suffix
     let mut out = None;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
-        let r = ui.add(egui::TextEdit::singleline(&mut text).desired_width(width).font(theme::font(12.0))).accessible_name(format!("{label} value"));
+        let r = ui
+            .add(egui::TextEdit::singleline(&mut text).desired_width(width).font(theme::font(SMALL_LABEL)))
+            .accessible_name(format!("{label} value"));
         if r.has_focus() {
             ui.data_mut(|d| d.insert_temp(key, text.clone()));
         } else {
@@ -677,7 +685,7 @@ mod tests {
             theme::install_fonts(ui.ctx());
             let label = "Send\nBackward";
             let (main, arrow) = big_button_ex(ui, Icon::SendBackward, label, true, true, false);
-            let font = theme::font(11.0);
+            let font = theme::font(BIG_LABEL);
             let col = Tokens::get(ui.ctx()).text;
             let lines = wrap_label(label);
             let rect = main.rect;

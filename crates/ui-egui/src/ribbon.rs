@@ -57,7 +57,7 @@ pub use table::paint_table_style;
 use table::{table_design, table_layout};
 pub use title_bar::{MAC_CONTENT_LEFT, MAC_TITLE_BAR, TITLE_H, title_bar};
 #[cfg(test)]
-use title_bar::{MAC_LIGHT, MAC_LIGHT_PITCH, MAC_LIGHTS_LEFT, title_geometry};
+use title_bar::{MAC_LIGHT, MAC_LIGHT_PITCH, MAC_LIGHTS_LEFT, title_galleys, title_geometry, title_max_width};
 pub use transitions::paint_transition_tile;
 #[cfg(test)]
 use transitions::transition_effect_rows;
@@ -117,6 +117,15 @@ fn contextual(app: &SlideApp) -> Vec<&'static str> {
     v
 }
 
+/// Tab strip geometry and type, matching OmaGrid (docs/ui-consistency.md): a 34 pt row whose tabs
+/// are 30 pt hit-boxes, labels 13.5 pt padded by 22 pt, 2 pt apart, starting 18 pt in.
+const TAB_ROW_H: f32 = 34.0;
+const TAB_HIT_H: f32 = 30.0;
+const TAB_FONT: f32 = 13.5;
+const TAB_PAD: f32 = 22.0;
+const TAB_SPACING: f32 = 2.0;
+const TAB_INSET: f32 = 18.0;
+
 const TABS: [&str; 10] = ["Home", "Insert", "Draw", "Design", "Transitions", "Animations", "Slide Show", "Record", "Review", "View"];
 
 /// Tab row and the ribbon card.
@@ -126,44 +135,52 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     if !TABS.contains(&app.ui.tab.as_str()) && !ctx_tabs.contains(&app.ui.tab.as_str()) {
         app.ui.tab = "Home".into();
     }
-    let h = 28.0 + if app.ui.ribbon_collapsed { 4.0 } else { RIBBON_H + 20.0 };
+    let h = if app.ui.ribbon_collapsed { TAB_ROW_H } else { TAB_ROW_H + RIBBON_H + 18.0 };
     egui::Panel::top("ribbon").exact_size(h).frame(egui::Frame::NONE.fill(t.chrome)).show(ui, |ui| {
         let rect = ui.max_rect();
-        // Tabs. File comes first and opens the File tab's full-window view (Backstage), as in
-        // PowerPoint.
-        let mut x = rect.min.x + 12.0;
-        let y = rect.min.y + 2.0;
+        // Tabs, laid out as OmaGrid's strip (docs/ui-consistency.md). File comes first and opens
+        // the File tab's full-window view (Backstage), as in PowerPoint.
+        let mut x = rect.min.x + TAB_INSET;
+        let y = rect.min.y;
         {
-            let w = ui.fonts_mut(|f| f.layout_no_wrap("File".to_string(), theme::font(13.0), t.text).size().x) + 18.0;
-            let r = Rect::from_min_size(pos2(x, y), vec2(w, 24.0));
+            let font = theme::font(TAB_FONT);
+            let w = (ui.fonts_mut(|f| f.layout_no_wrap("File".to_string(), font.clone(), t.text).size().x) + TAB_PAD).max(46.0);
+            let r = Rect::from_min_size(pos2(x, y), vec2(w, TAB_HIT_H));
             let resp = ui.interact(r, ui.scope_id().with("tab_file"), Sense::click());
             resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "File"));
             if resp.hovered() {
-                ui.painter().rect_filled(r.shrink2(vec2(2.0, 2.0)), CornerRadius::same(4), t.hover);
+                ui.painter().rect_filled(r.shrink2(vec2(2.0, 4.0)), CornerRadius::same(5), t.hover);
             }
-            ui.painter().text(r.center(), Align2::CENTER_CENTER, "File", theme::font(13.0), t.text);
+            ui.painter().text(r.center(), Align2::CENTER_CENTER, "File", font, t.accent);
             if resp.on_hover_text("File (Alt+F)").clicked() {
                 app.open_backstage(crate::backstage::Page::Home);
             }
-            x += w + 2.0;
+            x += w + TAB_SPACING;
         }
         let all: Vec<(&str, bool)> = TABS.iter().map(|s| (*s, false)).chain(ctx_tabs.iter().map(|s| (*s, true))).collect();
         for (name, contextual) in all {
-            let font = theme::font(13.0);
-            let w = ui.fonts_mut(|f| f.layout_no_wrap(name.to_string(), font.clone(), t.text).size().x) + 18.0;
-            let r = Rect::from_min_size(pos2(x, y), vec2(w, 24.0));
+            let font = theme::font(TAB_FONT);
+            let tw = ui.fonts_mut(|f| f.layout_no_wrap(name.to_string(), font.clone(), t.text).size().x);
+            let w = tw + TAB_PAD;
+            let r = Rect::from_min_size(pos2(x, y), vec2(w, TAB_HIT_H));
             let resp = ui.interact(r, ui.scope_id().with(("tab", name)), Sense::click());
             resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
             let active = app.ui.tab == name;
             if resp.hovered() && !active {
-                ui.painter().rect_filled(r.shrink2(vec2(2.0, 2.0)), CornerRadius::same(4), t.hover);
+                ui.painter().rect_filled(r.shrink2(vec2(2.0, 4.0)), CornerRadius::same(5), t.hover);
             }
-            let col = if contextual { t.contextual } else { t.text };
-            let f = if active { theme::bold(13.0) } else { font };
+            let col = if contextual {
+                t.contextual
+            } else if active {
+                t.text
+            } else {
+                t.text_dim
+            };
+            let f = if active { theme::bold(TAB_FONT) } else { font };
             ui.painter().text(r.center(), Align2::CENTER_CENTER, name, f, col);
             if active {
-                let uw = (w - 20.0).max(16.0);
-                ui.painter().rect_filled(Rect::from_center_size(pos2(r.center().x, r.max.y - 1.0), vec2(uw, 3.0)), CornerRadius::same(1), t.accent);
+                let ul = Rect::from_center_size(pos2(r.center().x, r.max.y - 3.0), vec2(tw.clamp(20.0, 40.0), 3.0));
+                ui.painter().rect_filled(ul, 1.5, t.accent);
             }
             if resp.clicked() {
                 if active {
@@ -176,13 +193,14 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
             if resp.double_clicked() {
                 app.ui.ribbon_collapsed = !app.ui.ribbon_collapsed;
             }
-            x += w + 2.0;
+            x += w + TAB_SPACING;
         }
         if app.ui.ribbon_collapsed {
             return;
         }
         // The white card.
-        let card = Rect::from_min_max(pos2(rect.min.x + 8.0, rect.min.y + 30.0), pos2(rect.max.x - 8.0, rect.min.y + 30.0 + RIBBON_H + 10.0));
+        let card =
+            Rect::from_min_max(pos2(rect.min.x + 8.0, rect.min.y + TAB_ROW_H), pos2(rect.max.x - 8.0, rect.min.y + TAB_ROW_H + RIBBON_H + 10.0));
         ui.painter().rect_filled(card.translate(vec2(0.0, 1.0)), CornerRadius::same(10), t.card_border);
         ui.painter().rect_filled(card, CornerRadius::same(10), t.card);
         let inner = Rect::from_min_size(pos2(card.min.x + 10.0, card.min.y + 5.0), vec2(card.width() - 20.0, RIBBON_H));
@@ -451,6 +469,40 @@ mod title_bar_tests {
         assert!(control <= h - 8.0);
         // Other platforms keep their system frame and the original bar.
         assert_eq!(title_geometry(false), (TITLE_H, 10.0, 26.0));
+    }
+
+    #[test]
+    fn title_fits_between_the_controls() {
+        // Room limited by the nearer side, symmetric about the centre, never negative.
+        assert_eq!(title_max_width(500.0, 300.0, 900.0), 2.0 * (200.0 - 12.0));
+        assert_eq!(title_max_width(500.0, 100.0, 650.0), 2.0 * (150.0 - 12.0));
+        assert_eq!(title_max_width(500.0, 520.0, 900.0), 0.0);
+    }
+
+    /// Lay out a title in a real egui frame, returning (glyphs shown, title width, marker width).
+    fn layout_title(title: &str, dirty: bool, max_w: f32) -> (String, f32, f32) {
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx);
+        let mut out = (String::new(), 0.0, 0.0);
+        let mut frame = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let (galley, dot) = title_galleys(ui.painter(), title, dirty, max_w, Color32::WHITE);
+            let shown = galley.rows.iter().flat_map(|r| r.glyphs.iter().map(|g| g.chr)).collect();
+            out = (shown, galley.size().x, dot.map_or(0.0, |d| d.size().x));
+        });
+        frame.textures_delta.clear();
+        out
+    }
+
+    #[test]
+    fn long_title_is_truncated_and_keeps_the_unsaved_marker() {
+        let long = "a very long presentation name ".repeat(20);
+        let (text, w, dot_w) = layout_title(&long, true, 200.0);
+        assert!(text.ends_with('…'), "truncated title ends with an ellipsis: {text:?}");
+        assert!(dot_w > 0.0, "the unsaved marker is laid out");
+        assert!(w + dot_w <= 200.0, "title and marker fit together: {}", w + dot_w);
+        let (text, _, dot_w) = layout_title("Northern Lights", false, 300.0);
+        assert_eq!(text, "Northern Lights");
+        assert_eq!(dot_w, 0.0);
     }
 }
 

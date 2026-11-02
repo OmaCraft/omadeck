@@ -8,11 +8,16 @@ use crate::icons::{self, Icon};
 use crate::theme::{self, Tokens};
 use crate::{SlideApp, ViewMode};
 
+/// Status bar geometry and type, matching OmaGrid (docs/ui-consistency.md).
+const STATUS_H: f32 = 26.0;
+const STATUS_MARGIN: f32 = 12.0;
+const STATUS_FONT: f32 = 12.5;
+
 /// The status bar: slide counter, proofing language and status message on the left; notes,
 /// comments, views and zoom on the right.
 pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    egui::Panel::bottom("status").exact_size(28.0).frame(egui::Frame::NONE.fill(t.chrome)).show(ui, |ui| {
+    egui::Panel::bottom("status").exact_size(STATUS_H).frame(egui::Frame::NONE.fill(t.chrome)).show(ui, |ui| {
         let rect = ui.max_rect();
         let Some(st) = app.session.active() else { return };
         let n = st.doc.slides.len();
@@ -23,7 +28,7 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
         let p = ui.painter();
         // Left to right: slide counter, language, status message. Each starts at its usual column, or
         // after the one before it when that runs long ("Slide 100 of 120", "… (not checked)").
-        let sr = p.text(pos2(rect.min.x + 14.0, rect.center().y), Align2::LEFT_CENTER, &left, theme::font(12.0), t.text_dim);
+        let sr = p.text(pos2(rect.min.x + STATUS_MARGIN, rect.center().y), Align2::LEFT_CENTER, &left, theme::font(STATUS_FONT), t.text_dim);
         shown_text(ui, sr, "status_slide", &left);
         // Where the controls on the right begin; nothing on the left paints or clicks past it.
         let right_x = rect.max.x - 560.0;
@@ -32,7 +37,7 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
         let name = crate::squiggles::display_lang_name(ui.ctx(), &lang) + if no_proof { " (not checked)" } else { "" };
         let lx = (rect.min.x + 120.0).max(sr.max.x + 16.0);
         let lclip = Rect::from_min_max(pos2(lx - 3.0, rect.min.y), pos2(right_x.max(lx - 3.0), rect.max.y));
-        let lr = p.with_clip_rect(lclip).text(pos2(lx, rect.center().y), Align2::LEFT_CENTER, &name, theme::font(12.0), t.text_dim);
+        let lr = p.with_clip_rect(lclip).text(pos2(lx, rect.center().y), Align2::LEFT_CENTER, &name, theme::font(STATUS_FONT), t.text_dim);
         let hit = lr.expand(3.0).intersect(lclip);
         if hit.is_positive() {
             let resp = ui.interact(hit, ui.scope_id().with("status_lang"), Sense::click()).on_hover_text("Language");
@@ -45,13 +50,13 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
         if let Some(msg) = app.fresh_status() {
             let mx = (rect.min.x + 290.0).max(lr.max.x + 16.0);
             let clip = Rect::from_min_max(pos2(mx, rect.min.y), pos2(right_x.max(mx), rect.max.y));
-            let mr = p.with_clip_rect(clip).text(pos2(mx, rect.center().y), Align2::LEFT_CENTER, &msg, theme::font(12.0), t.accent);
+            let mr = p.with_clip_rect(clip).text(pos2(mx, rect.center().y), Align2::LEFT_CENTER, &msg, theme::font(STATUS_FONT), t.text_dim);
             shown_text(ui, mr.intersect(clip), "status_message", &msg);
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
         }
         let mut right = ui.new_child(
             egui::UiBuilder::new()
-                .max_rect(Rect::from_min_max(pos2(right_x, rect.min.y), pos2(rect.max.x - 8.0, rect.max.y)))
+                .max_rect(Rect::from_min_max(pos2(right_x, rect.min.y), pos2(rect.max.x - STATUS_MARGIN, rect.max.y)))
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         right.spacing_mut().item_spacing.x = 4.0;
@@ -59,7 +64,8 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
             app.ui.zoom = None;
         }
         let pct = (app.canvas_scale * 100.0).round();
-        let lbl = right.add(egui::Label::new(egui::RichText::new(format!("{pct}%")).size(12.0).color(t.text_dim)).sense(Sense::click()));
+        let lbl = right
+            .add(egui::Label::new(egui::RichText::new(format!("{pct}%")).font(theme::font(STATUS_FONT)).color(t.text_dim)).sense(Sense::click()));
         lbl.widget_info(|| named_with_value("Zoom level", &format!("{pct}%")));
         if lbl.clicked() {
             let _ = app.run("view.zoomDialog", json!({}));
@@ -156,13 +162,13 @@ fn shown_text(ui: &Ui, rect: Rect, id: &str, text: &str) {
 /// accessible selected state.
 fn labeled(ui: &mut Ui, icon: Icon, label: &str, on: bool) -> egui::Response {
     let t = Tokens::get(ui.ctx());
-    let w = 22.0 + ui.fonts_mut(|f| f.layout_no_wrap(label.into(), theme::font(12.0), t.text).size().x) + 8.0;
+    let w = 22.0 + ui.fonts_mut(|f| f.layout_no_wrap(label.into(), theme::font(STATUS_FONT), t.text).size().x) + 8.0;
     let (r, resp) = ui.allocate_exact_size(vec2(w, 20.0), Sense::click());
     if on || resp.hovered() {
         ui.painter().rect_filled(r, CornerRadius::same(4), if on { t.selected } else { t.hover });
     }
     icons::paint(ui.painter(), Rect::from_center_size(pos2(r.min.x + 11.0, r.center().y), vec2(15.0, 15.0)), icon, t.text_dim, false);
-    ui.painter().text(pos2(r.min.x + 22.0, r.center().y), Align2::LEFT_CENTER, label, theme::font(12.0), t.text_dim);
+    ui.painter().text(pos2(r.min.x + 22.0, r.center().y), Align2::LEFT_CENTER, label, theme::font(STATUS_FONT), t.text_dim);
     // The visible label is painted directly, so name the interactive control explicitly and
     // expose the toggle state as selected: a screen reader hears "Notes, pressed" not "Notes".
     resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, ui.is_enabled(), on, label));
