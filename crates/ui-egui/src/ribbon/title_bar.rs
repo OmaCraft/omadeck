@@ -1,4 +1,4 @@
-use super::{Align2, Color32, CornerRadius, Icon, Rect, Sense, SlideApp, Stroke, Tokens, Ui, icon_toggle, json, pos2, theme, vec2};
+use super::{Align2, Color32, CornerRadius, Icon, Rect, Sense, SlideApp, Stroke, Tokens, Ui, icons, json, pos2, theme, vec2};
 
 pub const TITLE_H: f32 = 38.0;
 
@@ -55,37 +55,45 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
         let dirty = app.session.active().is_some_and(|d| d.is_dirty());
         crate::qat::show(app, &mut child);
         let left_end = child.min_rect().right();
-        // Right side.
+        let title = app.session.active().map(|d| d.title()).unwrap_or_else(|| "OmaDeck".into());
+        // Right cluster, left to right: search box, Comments, Present, light/dark (spec "Title bar
+        // right cluster"). Laid out right to left from the edge, over the bar's right half, so the
+        // search box can take whatever room the centred title leaves.
         let mut right = ui.new_child(
             egui::UiBuilder::new()
-                .max_rect(Rect::from_min_max(pos2(rect.max.x - 320.0, rect.min.y), pos2(rect.max.x - 10.0, rect.max.y)))
+                .max_rect(Rect::from_min_max(pos2(rect.center().x, rect.min.y), pos2(rect.max.x - 10.0, rect.max.y)))
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         right.spacing_mut().item_spacing.x = 6.0;
-        if icon_toggle(&mut right, Icon::Search, "Search commands (⇧⌘P)", true, false).clicked() {
-            app.palette = Some((String::new(), 0));
+        if title_icon(
+            &mut right,
+            if app.ui.brightness == theme::Brightness::Dark { Icon::Sparkle } else { Icon::Palette },
+            "Light/Dark appearance",
+            true,
+            false,
+            control_h,
+        )
+        .clicked()
+        {
+            let _ = app.run("view.dark", json!({}));
         }
         // Deck's one primary mode action: outlined in the accent, never filled (spec exception).
         if present_button(&mut right, control_h, has_doc).clicked() && has_doc {
             let from = app.session.active().map(|d| d.selection.slide).unwrap_or(0);
             app.start_show(from, false);
         }
-        if icon_toggle(&mut right, Icon::CommentsBubble, "Comments", has_doc, app.ui.pane.as_deref() == Some("comments")).clicked() {
+        if title_icon(&mut right, Icon::CommentsBubble, "Comments", has_doc, app.ui.pane.as_deref() == Some("comments"), control_h).clicked() {
             let _ = app.run("view.pane", json!({"pane": "comments", "toggle": true}));
         }
-        if icon_toggle(
-            &mut right,
-            if app.ui.brightness == theme::Brightness::Dark { Icon::Sparkle } else { Icon::Palette },
-            "Light/Dark appearance",
-            true,
-            false,
-        )
-        .clicked()
-        {
-            let _ = app.run("view.dark", json!({}));
+        // The room left of the actions once the whole title (and its marker) has its centred slot.
+        let title_w = title_galleys(ui.painter(), &title, dirty, f32::INFINITY, t.text);
+        let title_w = title_w.0.size().x + title_w.1.map_or(0.0, |d| d.size().x);
+        let actions_left = right.min_rect().left() - right.spacing().item_spacing.x;
+        let room = actions_left - (rect.center().x + title_w / 2.0 + TITLE_GAP);
+        if search_box(&mut right, search_width(room), control_h).clicked() {
+            app.palette = Some((String::new(), 0));
         }
         // Centred title, cut with "…" so it never runs under the controls on either side.
-        let title = app.session.active().map(|d| d.title()).unwrap_or_else(|| "OmaDeck".into());
         let max_w = title_max_width(rect.center().x, left_end, right.min_rect().left());
         paint_title(ui, rect.center(), &title, dirty, max_w, t.text);
     });
@@ -94,6 +102,64 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
 /// Title-bar label sizes (docs/ui-consistency.md): the bold document title and the plain actions.
 const TITLE_FONT: f32 = 13.0;
 const ACTION_FONT: f32 = 12.5;
+
+/// The search box: full width when there is room, shrinking to a minimum before the title has to
+/// truncate, then an icon button (spec "Search box").
+const SEARCH_W: f32 = 260.0;
+const SEARCH_MIN_W: f32 = 140.0;
+const TITLE_ICON_W: f32 = 28.0;
+
+/// Width of the search box for `room` points beside the title; `TITLE_ICON_W` collapses it to an icon.
+pub(super) fn search_width(room: f32) -> f32 {
+    if room >= SEARCH_W {
+        SEARCH_W
+    } else if room >= SEARCH_MIN_W {
+        room
+    } else {
+        TITLE_ICON_W
+    }
+}
+
+/// The title-bar search box (or, at `TITLE_ICON_W`, its icon button). A button that opens the
+/// command palette; ⇧⌘P still does the same.
+fn search_box(ui: &mut Ui, width: f32, control_h: f32) -> egui::Response {
+    let t = Tokens::get(ui.ctx());
+    const NAME: &str = "Search commands";
+    if width <= TITLE_ICON_W {
+        return title_icon(ui, Icon::Search, NAME, true, false, control_h).on_hover_text("Search commands (⇧⌘P)");
+    }
+    let (r, resp) = ui.allocate_exact_size(vec2(width, control_h), Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, NAME));
+    let fill = if resp.hovered() { t.field_bg } else { t.card };
+    ui.painter().rect(r, CornerRadius::same(6), fill, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
+    icons::paint(ui.painter(), Rect::from_center_size(pos2(r.min.x + 16.0, r.center().y), vec2(16.0, 16.0)), Icon::Search, t.text_dim, false);
+    let mut job = egui::text::LayoutJob::simple_singleline(NAME.to_string(), theme::font(ACTION_FONT), t.text_dim);
+    job.wrap = egui::text::TextWrapping::truncate_at_width((width - 38.0).max(0.0));
+    let galley = ui.painter().layout_job(job);
+    ui.painter().galley(pos2(r.min.x + 30.0, r.center().y - galley.size().y / 2.0), galley, t.text_dim);
+    resp.on_hover_text("Search commands (⇧⌘P)")
+}
+
+/// A title-bar icon button, 28 wide and as tall as the bar's controls; `on` shows it selected.
+fn title_icon(ui: &mut Ui, icon: Icon, tip: &str, enabled: bool, on: bool, control_h: f32) -> egui::Response {
+    let t = Tokens::get(ui.ctx());
+    let (r, resp) = ui.allocate_exact_size(vec2(TITLE_ICON_W, control_h), if enabled { Sense::click() } else { Sense::hover() });
+    let fill = if on {
+        Some(t.selected)
+    } else if enabled && resp.is_pointer_button_down_on() {
+        Some(t.pressed)
+    } else if enabled && resp.hovered() {
+        Some(t.hover)
+    } else {
+        None
+    };
+    if let Some(c) = fill {
+        ui.painter().rect_filled(r, CornerRadius::same(4), c);
+    }
+    icons::paint(ui.painter(), Rect::from_center_size(r.center(), vec2(17.0, 17.0)), icon, t.text, !enabled);
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, tip));
+    resp.on_hover_text(tip)
+}
 
 /// Gap kept between the title and the controls beside it.
 const TITLE_GAP: f32 = 12.0;

@@ -8,8 +8,11 @@ use egui::{Align2, Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, Vec
 use crate::icons::{self, Icon};
 use crate::theme::{self, Tokens};
 
-/// Height of the ribbon's content area.
-pub const RIBBON_H: f32 = 66.0;
+/// Height of the ribbon's content area: OmaGrid's 88 pt card less its 6 pt top and bottom padding.
+pub const RIBBON_H: f32 = 76.0;
+
+/// Height of large buttons and group separators (OmaGrid's 72).
+pub const BIG_H: f32 = 72.0;
 
 /// Large-button label size (OmaCraft chrome spec, `docs/ui-consistency.md`).
 pub const BIG_LABEL: f32 = 11.5;
@@ -62,7 +65,7 @@ pub fn big_button_ex(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, split:
     let w = big_button_width(text_w, split);
     // The whole button runs the main command; the narrow strip at the end of the label row is the
     // dropdown. A split button therefore has two named targets, not a third unnamed row target.
-    let (rect, resp) = ui.allocate_exact_size(vec2(w, RIBBON_H - 2.0), if enabled { Sense::click() } else { Sense::hover() });
+    let (rect, resp) = ui.allocate_exact_size(vec2(w, BIG_H), if enabled { Sense::click() } else { Sense::hover() });
     // Named for screen readers and UI tests ("Ink to\nShape" reads "Ink to Shape").
     let spoken = label.replace('\n', " ");
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, &spoken));
@@ -321,8 +324,8 @@ pub fn group<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
 
 pub fn separator(ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    let (rect, _) = ui.allocate_exact_size(vec2(13.0, RIBBON_H - 6.0), Sense::hover());
-    ui.painter().line_segment([pos2(rect.center().x, rect.min.y + 6.0), pos2(rect.center().x, rect.max.y - 4.0)], Stroke::new(1.0, t.separator));
+    let (rect, _) = ui.allocate_exact_size(vec2(13.0, BIG_H), Sense::hover());
+    ui.painter().line_segment([pos2(rect.center().x, rect.min.y + 6.0), pos2(rect.center().x, rect.max.y - 6.0)], Stroke::new(1.0, t.separator));
 }
 
 /// Two or three rows of small controls stacked in one ribbon column.

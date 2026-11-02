@@ -29,13 +29,14 @@ pub use info::{SAVE_TYPES, format_bytes};
 use print::{export, print};
 pub use print::{print_page_size, print_params, print_slides};
 
-/// Width of the side menu.
-pub const NAV_W: f32 = 160.0;
-/// Height of a side-menu entry (the back arrow's row is a little taller).
-const ITEM_H: f32 = 40.0;
-const BACK_H: f32 = 46.0;
-/// The widest a page's content grows.
-const CONTENT_W: f32 = 1180.0;
+/// Width of the side menu (OmaCraft File view spec, as OmaGrid's).
+pub const NAV_W: f32 = 196.0;
+/// Height of a side-menu entry.
+const ITEM_H: f32 = 38.0;
+/// The widest a page's content grows (pages are left-aligned like a document, not stretched).
+const CONTENT_W: f32 = 760.0;
+/// Pages laid out as a settings column beside a preview or detail column, which need more room.
+const WIDE_CONTENT_W: f32 = 1180.0;
 
 /// A page of the File tab.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -233,10 +234,14 @@ struct Outcome {
     page: Option<Page>,
 }
 
-/// Colours of the side menu and the page, from the theme: the menu sits a step darker than the
-/// page, as in PowerPoint.
-fn colours(t: &Tokens) -> (Color32, Color32) {
-    (t.chrome, t.card)
+/// Colours of the side menu (fill, text, selection) and the page, as OmaGrid's: the accent with
+/// white text in light themes, the soft accent with the normal text in dark ones.
+fn colours(t: &Tokens) -> (Color32, Color32, Color32, Color32) {
+    if t.dark {
+        (crate::omarchy::blend(t.card, t.accent, 0.3), t.text, Color32::from_white_alpha(30), t.card)
+    } else {
+        (t.accent, Color32::WHITE, Color32::from_black_alpha(46), t.card)
+    }
 }
 
 /// Runs a side-menu action. Returns the page to show, or None to close the view (Some(current)
@@ -321,63 +326,56 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     if !has_doc && bs.page.needs_doc() {
         bs.page = Page::Home;
     }
-    let (nav_bg, page_bg) = colours(&t);
+    let (nav_bg, nav_text, nav_sel, page_bg) = colours(&t);
+    let nav = NavStyle { text: nav_text, sel: nav_sel };
     let mut out = Outcome::default();
     let (top, bottom) = entries(has_doc);
-    egui::Panel::left("backstage_nav").exact_size(NAV_W).resizable(false).frame(egui::Frame::NONE.fill(nav_bg)).show(ui, |ui| {
-        ui.spacing_mut().item_spacing.y = 0.0;
-        if has_doc {
-            let (r, resp) = ui.allocate_exact_size(vec2(NAV_W, BACK_H), Sense::click());
-            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Back"));
-            let hovered = resp.hovered();
-            if hovered {
-                ui.painter().rect_filled(Rect::from_center_size(pos2(r.left() + 26.0, r.center().y), vec2(34.0, 34.0)), 17.0, t.hover);
-            }
-            icons::paint(
-                ui.painter(),
-                Rect::from_center_size(pos2(r.left() + 26.0, r.center().y), vec2(22.0, 22.0)),
-                Icon::BackCircle,
-                t.text,
-                false,
-            );
-            if resp.on_hover_text("Back (Esc)").clicked() {
-                out.close = true;
-            }
-        } else {
-            ui.add_space(BACK_H);
-        }
-        let mut index = 0;
-        for (k, nav) in top.iter().enumerate() {
-            if k == 3 {
-                separator(ui, &t);
-            }
-            if nav_item(ui, *nav, &bs, index, &t).clicked() {
-                bs.focus = None;
-                commit_props(app, &bs);
-                match act(app, *nav, bs.page) {
-                    None => out.close = true,
-                    Some(p) => out.page = Some(p),
+    egui::Panel::left("backstage_nav")
+        .exact_size(NAV_W)
+        .resizable(false)
+        .frame(egui::Frame::NONE.fill(nav_bg).inner_margin(egui::Margin { left: 0, right: 0, top: 10, bottom: 10 }))
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 0.0;
+            if has_doc {
+                let resp = nav_row(ui, Icon::BackCircle, "Back", false, false, &nav);
+                if resp.on_hover_text("Back (Esc)").clicked() {
+                    out.close = true;
                 }
+            } else {
+                // The start screen has nothing to go back to; keep the rows where they are.
+                ui.add_space(ITEM_H);
             }
-            index += 1;
-        }
-        let first_bottom = index;
-        ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-            ui.add_space(8.0);
-            // Bottom-up: draw the last entry first.
-            for (k, nav) in bottom.iter().enumerate().rev() {
-                if nav_item(ui, *nav, &bs, first_bottom + k, &t).clicked() {
+            ui.add_space(10.0);
+            let mut index = 0;
+            for (k, entry) in top.iter().enumerate() {
+                if k == 3 {
+                    separator(ui, &nav);
+                }
+                if nav_item(ui, *entry, &bs, index, &nav).clicked() {
                     bs.focus = None;
                     commit_props(app, &bs);
-                    match act(app, *nav, bs.page) {
+                    match act(app, *entry, bs.page) {
                         None => out.close = true,
                         Some(p) => out.page = Some(p),
                     }
                 }
+                index += 1;
             }
-            separator(ui, &t);
+            let first_bottom = index;
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                // Bottom-up: draw the last entry first, so Account sits just above Options.
+                for (k, entry) in bottom.iter().enumerate().rev() {
+                    if nav_item(ui, *entry, &bs, first_bottom + k, &nav).clicked() {
+                        bs.focus = None;
+                        commit_props(app, &bs);
+                        match act(app, *entry, bs.page) {
+                            None => out.close = true,
+                            Some(p) => out.page = Some(p),
+                        }
+                    }
+                }
+            });
         });
-    });
     egui::CentralPanel::default().frame(egui::Frame::NONE.fill(page_bg)).show(ui, |ui| {
         // Fields, boxes and buttons sit on the page's own colour: outline them, as PowerPoint does.
         ui.visuals_mut().text_edit_bg_color = Some(t.field_bg);
@@ -388,19 +386,18 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         w.hovered.bg_stroke = Stroke::new(1.0, t.accent);
         w.active.bg_stroke = Stroke::new(1.0, t.accent);
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            egui::Frame::NONE.inner_margin(egui::Margin { left: 48, right: 36, top: 22, bottom: 32 }).show(ui, |ui| {
+            egui::Frame::NONE.inner_margin(egui::Margin { left: 44, right: 32, top: 26, bottom: 32 }).show(ui, |ui| {
                 // set_max_width can also widen: in a window narrower than CONTENT_W it would push the
                 // page past the right margin and clip the tiles (#1421).
-                ui.set_max_width(ui.available_width().min(CONTENT_W));
-                if bs.page != Page::Home {
-                    ui.label(RichText::new(bs.page.label()).font(theme::bold(22.0)).color(t.text));
-                    ui.add_space(16.0);
-                }
+                let max_w = if matches!(bs.page, Page::Info | Page::Print | Page::Export) { WIDE_CONTENT_W } else { CONTENT_W };
+                ui.set_max_width(ui.available_width().min(max_w));
+                ui.label(RichText::new(bs.page.label()).font(theme::font(28.0)).color(t.text));
+                ui.add_space(18.0);
                 // Errors raised on a backstage page (a missing recent file, a failed open) would
                 // otherwise vanish: the status bar only draws once the backstage is closed (#172).
                 // A real label, not painted text, so screen readers see it too.
                 if let Some(msg) = app.fresh_status() {
-                    ui.label(RichText::new(&msg).font(theme::font(12.0)).color(t.accent));
+                    ui.label(RichText::new(&msg).font(theme::font(12.5)).color(t.accent));
                     ui.add_space(8.0);
                     ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
                 }
@@ -430,39 +427,51 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
 
 // ---------------------------------------------------------------- side menu
 
+/// The side menu's ink: its text colour and the selection fill.
+struct NavStyle {
+    text: Color32,
+    sel: Color32,
+}
+
 /// Draw one clickable Backstage navigation row and return its interaction response.
-fn nav_item(ui: &mut Ui, nav: Nav, bs: &Backstage, index: usize, t: &Tokens) -> egui::Response {
+fn nav_item(ui: &mut Ui, nav: Nav, bs: &Backstage, index: usize, style: &NavStyle) -> egui::Response {
+    nav_row(ui, nav.icon(), nav.label(), nav == Nav::Page(bs.page), bs.focus == Some(index), style)
+}
+
+/// One side-menu row, as OmaGrid's: 38 high, icon centred 30 in, 14 pt label 50 in; the current
+/// page gets the selection fill and a 4 pt bar, hover a lighter fill. The keyboard focus is
+/// outlined.
+fn nav_row(ui: &mut Ui, icon: Icon, label: &str, selected: bool, focused: bool, style: &NavStyle) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(NAV_W, ITEM_H), Sense::click());
-    let selected = nav == Nav::Page(bs.page);
-    let label = nav.label();
     resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, label));
     let p = ui.painter();
-    let row = rect.shrink2(vec2(6.0, 1.0));
-    if resp.hovered() {
-        p.rect_filled(row, CornerRadius::same(2), t.hover);
+    if selected {
+        p.rect_filled(rect, CornerRadius::ZERO, style.sel);
+        p.rect_filled(Rect::from_min_size(rect.min, vec2(4.0, rect.height())), CornerRadius::ZERO, style.text);
+    } else if resp.hovered() {
+        p.rect_filled(rect, CornerRadius::ZERO, style.sel.gamma_multiply(0.55));
     }
-    if bs.focus == Some(index) || selected {
-        // The current page (and the keyboard focus) is outlined, as in PowerPoint.
-        let ink = if bs.focus == Some(index) { t.text } else { t.border };
-        p.rect_stroke(row, CornerRadius::same(2), Stroke::new(1.0, ink), StrokeKind::Inside);
+    if focused {
+        p.rect_stroke(rect.shrink2(vec2(6.0, 1.0)), CornerRadius::same(2), Stroke::new(1.0, style.text), StrokeKind::Inside);
     }
-    let ink = if selected { t.accent } else { t.text };
-    icons::paint(p, Rect::from_center_size(pos2(rect.left() + 26.0, rect.center().y), vec2(16.0, 16.0)), nav.icon(), ink, false);
-    p.text(pos2(rect.left() + 44.0, rect.center().y), Align2::LEFT_CENTER, label, theme::font(13.0), ink);
+    icons::paint(p, Rect::from_center_size(pos2(rect.left() + 30.0, rect.center().y), vec2(17.0, 17.0)), icon, style.text, false);
+    p.text(pos2(rect.left() + 50.0, rect.center().y), Align2::LEFT_CENTER, label, theme::font(14.0), style.text);
     resp
 }
 
-fn separator(ui: &mut Ui, t: &Tokens) {
-    let (rect, _) = ui.allocate_exact_size(vec2(NAV_W, 13.0), Sense::hover());
+fn separator(ui: &mut Ui, style: &NavStyle) {
+    let (rect, _) = ui.allocate_exact_size(vec2(NAV_W, 17.0), Sense::hover());
     let y = rect.center().y;
-    ui.painter().line_segment([pos2(rect.left() + 20.0, y), pos2(rect.right() - 14.0, y)], Stroke::new(1.0, t.separator));
+    ui.painter().line_segment([pos2(rect.left() + 20.0, y), pos2(rect.right() - 20.0, y)], Stroke::new(1.0, style.text.gamma_multiply(0.35)));
 }
 
 // ---------------------------------------------------------------- shared pieces
 
+/// A section heading: bold 15 with 6 above and 8 below.
 fn heading(ui: &mut Ui, text: &str) {
     let t = Tokens::get(ui.ctx());
-    ui.label(RichText::new(text).font(theme::bold(16.0)).color(t.text));
+    ui.add_space(6.0);
+    ui.label(RichText::new(text).font(theme::bold(15.0)).color(t.text));
     ui.add_space(8.0);
 }
 

@@ -57,7 +57,7 @@ pub use table::paint_table_style;
 use table::{table_design, table_layout};
 pub use title_bar::{MAC_CONTENT_LEFT, MAC_TITLE_BAR, TITLE_H, title_bar};
 #[cfg(test)]
-use title_bar::{MAC_LIGHT, MAC_LIGHT_PITCH, MAC_LIGHTS_LEFT, title_galleys, title_geometry, title_max_width};
+use title_bar::{MAC_LIGHT, MAC_LIGHT_PITCH, MAC_LIGHTS_LEFT, search_width, title_galleys, title_geometry, title_max_width};
 pub use transitions::paint_transition_tile;
 #[cfg(test)]
 use transitions::transition_effect_rows;
@@ -125,6 +125,10 @@ const TAB_FONT: f32 = 13.5;
 const TAB_PAD: f32 = 22.0;
 const TAB_SPACING: f32 = 2.0;
 const TAB_INSET: f32 = 18.0;
+/// The ribbon body under the tab row (card plus margins) and its card, as OmaGrid's.
+const BODY_H: f32 = 92.0;
+const CARD_H: f32 = 88.0;
+const _: () = assert!(CARD_H - 12.0 == RIBBON_H, "the card's padded content is the ribbon content height");
 
 const TABS: [&str; 10] = ["Home", "Insert", "Draw", "Design", "Transitions", "Animations", "Slide Show", "Record", "Review", "View"];
 
@@ -135,7 +139,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     if !TABS.contains(&app.ui.tab.as_str()) && !ctx_tabs.contains(&app.ui.tab.as_str()) {
         app.ui.tab = "Home".into();
     }
-    let h = if app.ui.ribbon_collapsed { TAB_ROW_H } else { TAB_ROW_H + RIBBON_H + 18.0 };
+    let h = if app.ui.ribbon_collapsed { TAB_ROW_H } else { TAB_ROW_H + BODY_H };
     egui::Panel::top("ribbon").exact_size(h).frame(egui::Frame::NONE.fill(t.chrome)).show(ui, |ui| {
         let rect = ui.max_rect();
         // Tabs, laid out as OmaGrid's strip (docs/ui-consistency.md). File comes first and opens
@@ -198,12 +202,12 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         if app.ui.ribbon_collapsed {
             return;
         }
-        // The white card.
-        let card =
-            Rect::from_min_max(pos2(rect.min.x + 8.0, rect.min.y + TAB_ROW_H), pos2(rect.max.x - 8.0, rect.min.y + TAB_ROW_H + RIBBON_H + 10.0));
-        ui.painter().rect_filled(card.translate(vec2(0.0, 1.0)), CornerRadius::same(10), t.card_border);
+        // The ribbon card, as OmaGrid's: 88 pt high under the 30 pt tabs (2 pt below them), 10 pt
+        // in from the panel edges, radius 10 with a 1 pt border, content padded (10, 6).
+        let card = Rect::from_min_size(pos2(rect.min.x + 10.0, rect.min.y + TAB_HIT_H + 2.0), vec2((rect.width() - 20.0).max(0.0), CARD_H));
         ui.painter().rect_filled(card, CornerRadius::same(10), t.card);
-        let inner = Rect::from_min_size(pos2(card.min.x + 10.0, card.min.y + 5.0), vec2(card.width() - 20.0, RIBBON_H));
+        ui.painter().rect_stroke(card, CornerRadius::same(10), Stroke::new(1.0, t.card_border), egui::StrokeKind::Inside);
+        let inner = card.shrink2(vec2(10.0, 6.0));
         let mut cui = ui.new_child(egui::UiBuilder::new().max_rect(inner));
         cui.set_clip_rect(inner.expand2(vec2(0.0, 3.0)));
         // Reserve a gutter on both sides for the overflow chevrons. They are painted and
@@ -307,9 +311,11 @@ pub(super) fn spare_room(ctx: &egui::Context, tab: &str) -> Option<f32> {
 fn edge_cue(ui: &mut Ui, rect: Rect, glyph: &str, hint: &str, t: &Tokens) -> bool {
     let resp = ui.interact(rect, ui.scope_id().with(glyph), Sense::click()).on_hover_text(hint);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, hint));
-    let ink = if resp.hovered() { t.text } else { t.text_dim };
-    ui.painter().rect_filled(rect, CornerRadius::ZERO, t.card);
-    ui.painter().text(rect.center(), Align2::CENTER_CENTER, glyph, egui::FontId::proportional(18.0), ink);
+    // OmaGrid's scroll arrow: a small bordered tab with a chevron, hover-filled.
+    ui.painter().rect_filled(rect, CornerRadius::same(4), if resp.hovered() { t.hover } else { t.card });
+    ui.painter().rect_stroke(rect, CornerRadius::same(4), Stroke::new(1.0, t.card_border), egui::StrokeKind::Inside);
+    let icon = if glyph == "‹" { Icon::ChevronLeft } else { Icon::ChevronRight };
+    icons::paint(ui.painter(), Rect::from_center_size(rect.center(), vec2(14.0, 14.0)), icon, t.text, false);
     resp.clicked()
 }
 
@@ -469,6 +475,15 @@ mod title_bar_tests {
         assert!(control <= h - 8.0);
         // Other platforms keep their system frame and the original bar.
         assert_eq!(title_geometry(false), (TITLE_H, 10.0, 26.0));
+    }
+
+    #[test]
+    fn search_box_shrinks_then_collapses_to_an_icon() {
+        assert_eq!(search_width(500.0), 260.0, "full width when there is room");
+        assert_eq!(search_width(200.0), 200.0, "shrinks to the room left beside the title");
+        assert_eq!(search_width(140.0), 140.0);
+        assert_eq!(search_width(139.0), 28.0, "below its minimum it becomes an icon button");
+        assert_eq!(search_width(-50.0), 28.0);
     }
 
     #[test]

@@ -6,7 +6,8 @@ use super::{
 /// A new-presentation tile: a theme preview drawn in code (or a blank slide) over its name.
 fn tile(ui: &mut Ui, label: &str, theme: Option<&deckcraft_model::Theme>, big: bool) -> egui::Response {
     let t = Tokens::get(ui.ctx());
-    let thumb_w = if big { 200.0 } else { 160.0 };
+    // About 150 wide like the other apps' New tiles: five to the 760 pt content column.
+    let thumb_w = if big { 200.0 } else { 130.0 };
     let (rect, resp) = ui.allocate_exact_size(vec2(thumb_w + 16.0, thumb_w * 9.0 / 16.0 + 44.0), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
     let p = ui.painter();
@@ -24,7 +25,7 @@ fn tile(ui: &mut Ui, label: &str, theme: Option<&deckcraft_model::Theme>, big: b
     if resp.hovered() {
         p.rect_stroke(thumb, CornerRadius::same(2), Stroke::new(2.0, t.accent), StrokeKind::Outside);
     }
-    let galley = p.layout(label.to_string(), theme::font(12.0), t.text, rect.width() - 8.0);
+    let galley = p.layout(label.to_string(), theme::font(12.5), t.text, rect.width() - 8.0);
     p.galley(pos2(rect.center().x - galley.size().x / 2.0, thumb.bottom() + 8.0), galley, t.text);
     resp
 }
@@ -40,7 +41,7 @@ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank: 
         return false;
     }
     ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing = vec2(10.0, 10.0);
+        ui.spacing_mut().item_spacing = vec2(6.0, 10.0);
         if blank && tile(ui, "Blank Presentation", None, false).clicked() {
             let _ = app.run("file.new", json!({}));
         }
@@ -73,7 +74,7 @@ fn template_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize) ->
         return false;
     }
     ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing = vec2(10.0, 10.0);
+        ui.spacing_mut().item_spacing = vec2(6.0, 10.0);
         for starter in list.into_iter().take(limit) {
             let theme = deckcraft_model::theme::builtin_themes().into_iter().find(|th| th.name == starter.theme);
             if tile(ui, starter.name, theme.as_ref(), false).on_hover_text(starter.summary).clicked() {
@@ -208,13 +209,7 @@ pub(super) fn task(ui: &mut Ui, icon: Icon, button: &str, title: &str, detail: &
 pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome) {
     let t = Tokens::get(ui.ctx());
     ui.horizontal(|ui| {
-        let (r, _) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::hover());
-        crate::dialogs::paint_logo(ui.painter(), r);
-        ui.label(RichText::new("OmaDeck").font(theme::bold(24.0)).color(t.text));
-    });
-    ui.add_space(18.0);
-    ui.horizontal(|ui| {
-        ui.label(RichText::new("New").font(theme::bold(16.0)).color(t.text));
+        ui.label(RichText::new("New").font(theme::bold(15.0)).color(t.text));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if arrow_link(ui, "More themes") {
                 out.page = Some(Page::New);
@@ -222,10 +217,11 @@ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mu
         });
     });
     ui.add_space(6.0);
-    new_tiles(app, ui, "", 5, true);
+    // Blank plus four themes: one row of the 760 pt column; More themes shows the rest.
+    new_tiles(app, ui, "", 4, true);
     ui.add_space(22.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Templates").font(theme::bold(16.0)).color(t.text));
+        ui.label(RichText::new("Templates").font(theme::bold(15.0)).color(t.text));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if arrow_link(ui, "More templates") {
                 out.page = Some(Page::New);
@@ -236,7 +232,7 @@ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mu
     template_tiles(app, ui, "", 3);
     ui.add_space(22.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Recent").font(theme::bold(16.0)).color(t.text));
+        ui.label(RichText::new("Recent").font(theme::bold(15.0)).color(t.text));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             search(ui, &mut bs.query, "Search for a file", 280.0);
         });
