@@ -309,6 +309,8 @@ icons! {
     Image => "image",
     Sparkle => "sparkle",
     Palette => "palette",
+    /// Light/dark appearance: a circle with its right half filled (the toggle all OmaCraft apps share).
+    Appearance => "appearance",
     Grid => "grid",
     List => "list",
     Collapse => "collapse",

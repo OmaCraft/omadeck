@@ -1281,6 +1281,10 @@ fn draw_chrome_and_status(p: &Pen<'_>, icon: Icon) -> bool {
             p.dot((16.3, 7.8), 1.7, G);
             p.dot((7.2, 14.8), 1.7, B);
         }
+        I::Appearance => {
+            p.circle((12.0, 12.0), 8.25, N, K);
+            p.poly(&arc_pts((12.0, 12.0), 8.25, 8.25, -90.0, 90.0), K, N);
+        }
         I::Grid => {
             for (x, y) in [(3.0, 3.0), (13.0, 3.0), (3.0, 13.0), (13.0, 13.0)] {
                 p.rect((x, y, x + 8.0, y + 8.0), 1.5, N, K);

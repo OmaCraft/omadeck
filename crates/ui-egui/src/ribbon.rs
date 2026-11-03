@@ -57,7 +57,10 @@ pub use table::paint_table_style;
 use table::{table_design, table_layout};
 pub use title_bar::{MAC_CONTENT_LEFT, MAC_TITLE_BAR, TITLE_H, title_bar};
 #[cfg(test)]
-use title_bar::{MAC_LIGHT, MAC_LIGHT_PITCH, MAC_LIGHTS_LEFT, search_width, title_galleys, title_geometry, title_max_width};
+use title_bar::{
+    MAC_LIGHT, MAC_LIGHT_PITCH, MAC_LIGHTS_LEFT, TITLE_ACTIONS_SLOT, TITLE_RIGHT_PAD, search_right_edge, search_width, title_galleys, title_geometry,
+    title_max_width,
+};
 pub use transitions::paint_transition_tile;
 #[cfg(test)]
 use transitions::transition_effect_rows;
@@ -522,6 +525,45 @@ mod title_bar_tests {
         let (text, _, dot_w) = layout_title("Northern Lights", false, 300.0);
         assert_eq!(text, "Northern Lights");
         assert_eq!(dot_w, 0.0);
+    }
+
+    #[test]
+    fn search_box_ends_at_the_shared_actions_slot() {
+        // Narrow actions leave empty space; wide ones push the box left of them.
+        assert_eq!(search_right_edge(1440.0, 1300.0), 1440.0 - TITLE_ACTIONS_SLOT);
+        assert_eq!(search_right_edge(1440.0, 1100.0), 1100.0);
+    }
+
+    /// The right cluster at 1440 × 900, as in every OmaCraft app: the search box ends 300 pt from
+    /// the right edge, the shared light/dark toggle is there and toggles Dark Mode, and there is no
+    /// Discord link (OmaCraft has no Discord server).
+    #[test]
+    fn right_cluster_lines_up_with_the_other_apps() {
+        #![allow(clippy::unwrap_used, clippy::expect_used)]
+        use egui_kittest::kittest::Queryable;
+        let app = SlideApp::new(deckcraft_engine::Session::with_new(), crate::Services::default());
+        // The whole window, as eframe hands it over (kittest puts an 8 pt margin around its ui).
+        let mut h = egui_kittest::Harness::builder().with_size(vec2(1440.0, 900.0)).build_ui_state(
+            |ui, app: &mut SlideApp| {
+                app.logic(ui.ctx());
+                let window = ui.ctx().content_rect();
+                ui.scope_builder(egui::UiBuilder::new().max_rect(window), |ui| app.ui(ui));
+            },
+            app,
+        );
+        h.run_steps(3);
+        let search = h.get_by_label("Search commands").rect();
+        assert!((search.right() - 1140.0).abs() <= 0.5, "search box right edge {}", search.right());
+        assert_eq!(search.width(), 260.0, "full-width search box at 1440 pt");
+        let toggle = h.get_by_label("Dark Mode").rect();
+        assert!(toggle.top() < TITLE_H, "the light/dark toggle is in the title bar: {toggle:?}");
+        assert!((toggle.right() - (1440.0 - TITLE_RIGHT_PAD)).abs() <= 0.5, "it is the rightmost action: {toggle:?}");
+        assert_eq!(toggle.size(), vec2(28.0, 26.0));
+        let before = h.state().ui.brightness;
+        h.get_by_label("Dark Mode").click();
+        h.run_steps(2);
+        assert_ne!(h.state().ui.brightness, before, "clicking the toggle switches Dark Mode");
+        assert!(h.query_by_label_contains("Discord").is_none(), "no Discord link");
     }
 }
 

@@ -92,8 +92,8 @@ fn main() -> ExitCode {
         Some("app") => report(app(rest)),
         Some("mcp") => report(mcp(rest)),
         Some("links") => {
-            use deckcraft_engine::links::{APP_PAGE, DISCORD, GITHUB, WEBSITE};
-            outln!("Discord   {DISCORD}\nWebsite   {WEBSITE}\nApp page  {APP_PAGE}\nGitHub    {GITHUB}");
+            use deckcraft_engine::links::{APP_PAGE, GITHUB, WEBSITE};
+            outln!("Website   {WEBSITE}\nApp page  {APP_PAGE}\nGitHub    {GITHUB}");
             ExitCode::SUCCESS
         }
         Some(other) => unknown(other),
@@ -117,7 +117,7 @@ fn unknown(sub: &str) -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!("{}", help::overview());
-    eprintln!("\nCommunity: {}  ·  {}", deckcraft_engine::links::DISCORD, deckcraft_engine::links::APP_PAGE);
+    eprintln!("\nProject: {}", deckcraft_engine::links::APP_PAGE);
     ExitCode::FAILURE
 }
 

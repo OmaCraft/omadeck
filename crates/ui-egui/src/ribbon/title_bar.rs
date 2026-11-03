@@ -61,22 +61,11 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
         // search box can take whatever room the centred title leaves.
         let mut right = ui.new_child(
             egui::UiBuilder::new()
-                .max_rect(Rect::from_min_max(pos2(rect.center().x, rect.min.y), pos2(rect.max.x - 10.0, rect.max.y)))
+                .max_rect(Rect::from_min_max(pos2(rect.center().x, rect.min.y), pos2(rect.max.x - TITLE_RIGHT_PAD, rect.max.y)))
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         right.spacing_mut().item_spacing.x = 6.0;
-        if title_icon(
-            &mut right,
-            if app.ui.brightness == theme::Brightness::Dark { Icon::Sparkle } else { Icon::Palette },
-            "Light/Dark appearance",
-            true,
-            false,
-            control_h,
-        )
-        .clicked()
-        {
-            let _ = app.run("view.dark", json!({}));
-        }
+        appearance_toggle(app, &mut right);
         // Deck's one primary mode action: outlined in the accent, never filled (spec exception).
         if present_button(&mut right, control_h, has_doc).clicked() && has_doc {
             let from = app.session.active().map(|d| d.selection.slide).unwrap_or(0);
@@ -85,11 +74,15 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
         if title_icon(&mut right, Icon::CommentsBubble, "Comments", has_doc, app.ui.pane.as_deref() == Some("comments"), control_h).clicked() {
             let _ = app.run("view.pane", json!({"pane": "comments", "toggle": true}));
         }
-        // The room left of the actions once the whole title (and its marker) has its centred slot.
+        // The search box ends at the shared actions slot whatever this app's actions are, so it
+        // sits at the same place in every app; wider actions push it left.
+        let next_right = right.min_rect().left() - right.spacing().item_spacing.x;
+        let search_right = search_right_edge(rect.right(), next_right);
+        right.add_space(next_right - search_right);
+        // The room left of the slot once the whole title (and its marker) has its centred slot.
         let title_w = title_galleys(ui.painter(), &title, dirty, f32::INFINITY, t.text);
         let title_w = title_w.0.size().x + title_w.1.map_or(0.0, |d| d.size().x);
-        let actions_left = right.min_rect().left() - right.spacing().item_spacing.x;
-        let room = actions_left - (rect.center().x + title_w / 2.0 + TITLE_GAP);
+        let room = search_right - (rect.center().x + title_w / 2.0 + TITLE_GAP);
         if search_box(&mut right, search_width(room), control_h).clicked() {
             app.palette = Some((String::new(), 0));
         }
@@ -98,6 +91,45 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
         paint_title(ui, rect.center(), &title, dirty, max_w, t.text);
     });
 }
+
+/// Gap between the window's right edge and the last title-bar action.
+pub(super) const TITLE_RIGHT_PAD: f32 = 8.0;
+
+/// Room reserved for the title-bar actions, measured from the window's right edge: the search
+/// box's right edge sits here in every OmaCraft app (spec "Title bar right cluster").
+pub(super) const TITLE_ACTIONS_SLOT: f32 = 300.0;
+
+/// The search box's right edge in a bar ending at `bar_right` whose actions leave the next item
+/// ending at `next_right`: the shared slot, or directly left of actions too wide for it.
+pub(super) fn search_right_edge(bar_right: f32, next_right: f32) -> f32 {
+    (bar_right - TITLE_ACTIONS_SLOT).min(next_right)
+}
+
+/// The light/dark toggle all OmaCraft apps share: click switches Dark Mode, right-click offers
+/// System as well (it follows the desktop). Also in View › Dark Mode and Preferences.
+fn appearance_toggle(app: &mut SlideApp, ui: &mut Ui) {
+    let dark = app.ui.brightness == theme::Brightness::Dark;
+    let resp = title_icon(ui, Icon::Appearance, "Dark Mode", true, false, APPEARANCE_H);
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, dark, "Dark Mode"));
+    if resp.clicked() {
+        let _ = app.run("view.dark", json!({}));
+    }
+    resp.context_menu(|ui| {
+        let system = app.ui.follow_desktop;
+        for (label, on) in [("System", system), ("Light", !system && !dark), ("Dark", !system && dark)] {
+            if ui.radio(on, label).clicked() {
+                let _ = match label {
+                    "System" => app.run("view.systemTheme", json!({"on": true})),
+                    _ => app.run("view.dark", json!({"on": label == "Dark"})),
+                };
+                ui.close();
+            }
+        }
+    });
+}
+
+/// The light/dark toggle's height: 28 × 26 in every app, also in the shorter macOS bar.
+const APPEARANCE_H: f32 = 26.0;
 
 /// Title-bar label sizes (docs/ui-consistency.md): the bold document title and the plain actions.
 const TITLE_FONT: f32 = 13.0;
