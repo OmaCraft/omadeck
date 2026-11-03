@@ -213,8 +213,12 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         // Reserve a gutter on both sides for the overflow chevrons. They are painted and
         // interacted in that gutter, never on top of the first/last visible button: the bar they
         // reveal must not steal the click they were meant to make reachable.
+        // The left gutter only once the row has been scrolled (last frame's offset), so an
+        // unscrolled row starts at the card's padding, as OmaGrid's does.
         let edge = 18.0_f32.min(inner.width() * 0.25);
-        let scroll_rect = inner.shrink2(vec2(edge, 0.0));
+        let scrolled = app.ribbon_scroll.get(&app.ui.tab).is_some_and(|bits| f32::from_bits(*bits) > 1.0);
+        let left_edge = if scrolled { edge } else { 0.0 };
+        let scroll_rect = Rect::from_min_max(pos2(inner.left() + left_edge, inner.top()), pos2(inner.right() - edge, inner.bottom()));
         let mut sui = ui.new_child(egui::UiBuilder::new().max_rect(scroll_rect));
         sui.set_clip_rect(scroll_rect.expand2(vec2(0.0, 3.0)));
         let tab = app.ui.tab.clone();
@@ -278,7 +282,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         let step = 160.0;
         let mut next = None;
         if offset > 1.0 {
-            let left = Rect::from_min_max(pos2((r.left() - edge).max(inner.left()), r.top()), pos2(r.left(), r.bottom()));
+            let left = Rect::from_min_max(pos2((r.left() - edge).max(inner.left()), r.top()), pos2(r.left().max(inner.left() + edge), r.bottom()));
             if edge_cue(&mut cui, left, "‹", "Scroll ribbon left", &t) {
                 next = Some(offset - step);
             }
