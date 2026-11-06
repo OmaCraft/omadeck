@@ -3,7 +3,7 @@
 Part of [OmaCraft](https://github.com/ustaaa/omacraft) - a friendly fork of ArtCraft's DeckCraft.
 
 
-OmaDeck adapts [DeckCraft](https://github.com/storytold/deckcraft) to Omarchy and Linux. This development fork starts at **v0.12.0**, commit `29f0f7772c47aa2bfb74fcbb0c4d3b1503300849`. It is independent of ArtCraft and the Omarchy project.
+OmaDeck adapts [DeckCraft](https://github.com/storytold/deckcraft) to Omarchy and Linux. This development fork started at **v0.12.0**, commit `29f0f7772c47aa2bfb74fcbb0c4d3b1503300849`; its current upstream integration is DeckCraft **v0.15.1** (`9bac60ff53029039c82083ee574c22d74c1541f1`). It is independent of ArtCraft and the Omarchy project.
 
 The presentation engine, file formats, slide rendering, text layout, media codecs, commands and existing ribbon arrangement remain upstream-compatible. Omarchy v3/v4 colors and an optional fontconfig monospace face apply to interface chrome. Slide, chart, notes and print/PDF typography keep their original font paths. Preferences offer Follow Desktop and manual appearance; live font changes wait until editing/input is idle.
 

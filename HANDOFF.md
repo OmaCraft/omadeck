@@ -78,3 +78,32 @@ Cargo workspace package version is `0.13.1`; downstream `OMA_VERSION` is `0.13.1
 
 ## 2026-11-01 Claude upstream review corrections
 Restored upstream SlideDrag, presenter metadata/keepCursor command and presenter/reflection test modules lost in merge conflict resolution. Adapted new CLI binary/error-prefix tests and three presenter preview harnesses to Oma identity/font initialization. Production font paths unchanged. Halo four-thread full cargo xtask ci passes all8 steps on reviewed source patch; exact clean-head rerun pending. Original failures retained privately. Archived unadapted FreeBSD packager behind exit2 stub. Claude Opus5.5 independently confirmed fixes and production font bootstrap. No deployment.
+
+## Alpha 3 upstream integration in progress (2026-11-05)
+
+On `codex/alpha-3`, merged upstream DeckCraft v0.15.1, exact commit
+`9bac60ff53029039c82083ee574c22d74c1541f1`, over alpha2 base
+`d54dae3824f0526ab06cfba51fd987086befa1d7` with `--no-commit`. Downstream version is
+`0.15.1-oma.1.alpha.1`. The merge is resolved and staged for review; it is not committed or pushed.
+
+Conflict decisions: retained the OmaDeck README and disabled installation-managed updater;
+removed `craft-update` from manifest/lock. Kept the private-name bundled PDF font test fixture
+and attribution/licence behavior, preserved the real recovery lock regression test alongside the
+upstream instance-ID test, and kept OmaDeck About copy and app identity. Retained the release's
+SlideDrag, presenter/keepCursor behavior and presenter/reflection tests. Release-facing
+`craft-media`, `craft-pdf`, `craft-ui`, and `krilla` remain on the release-compatible `c5a1cbf`
+revision; the separately pinned `craft-platform` appearance integration stays at `92d392c`.
+OmaDeck font bootstrap paths remain unchanged.
+
+The added OCI packaging helper now uses `omadeck-$OMA_VERSION`, defaults to
+`ghcr.io/ustaaa/omadeck`, and publishes only with explicit `--push`; no push was run. Active
+upstream updater references are absent. The upstream release workflow remains `.upstream` and is
+not enabled.
+
+Checks on this macOS host: `cargo fmt --all -- --check` passed;
+`cargo metadata --offline --locked --no-deps --format-version 1` passed;
+`bash -n packaging/linux/flatpak-oci.sh packaging/linux/flatpak-bundle.sh` passed;
+`git diff --check` passed. Full offline Cargo metadata could not check the pinned `krilla` git
+source because it is not cached; no dependency fetch/install, compile, or tests were run.
+Full `cargo +1.98.0 xtask ci` and `cargo +1.98.0 build --locked --release -p deckcraft -p deckcraft-cli` remain pending on the designated Linux x86_64 build host.
+No NUC contact or runtime validation was performed.
