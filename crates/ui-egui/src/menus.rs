@@ -5,7 +5,7 @@ use deckcraft_engine::Mods;
 use serde_json::json;
 
 use crate::SlideApp;
-use crate::theme::{self, Tokens};
+use crate::theme::Tokens;
 
 /// Shortcuts the UI handles itself (views, show, zoom, palette, file dialogs). True when consumed.
 pub fn ui_shortcut(app: &mut SlideApp, key: egui::Key, m: Mods) -> bool {
@@ -124,7 +124,12 @@ pub fn palette(app: &mut SlideApp, ctx: &egui::Context) {
         .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 90.0))
         .fixed_size(egui::vec2(520.0, 380.0))
         .show(ctx, |ui| {
-            let r = ui.add(egui::TextEdit::singleline(&mut query).hint_text("Search commands…").desired_width(f32::INFINITY).font(theme::font(15.0)));
+            let r = ui.add(
+                egui::TextEdit::singleline(&mut query)
+                    .hint_text("Search commands…")
+                    .desired_width(f32::INFINITY)
+                    .font(omacraft_ui::Role::Body.font()),
+            );
             r.request_focus();
             let q = query.to_lowercase();
             let items = palette_items(&app.session, &q);
@@ -154,7 +159,11 @@ pub fn palette(app: &mut SlideApp, ctx: &egui::Context) {
                         let resp = ui.selectable_label(k == sel, label);
                         if let Some(s) = sc {
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(egui::RichText::new(crate::ribbon::pretty_shortcut(s)).color(t.text_faint));
+                                ui.label(
+                                    egui::RichText::new(crate::ribbon::pretty_shortcut(s))
+                                        .font(omacraft_ui::Role::Shortcut.font())
+                                        .color(t.text_faint),
+                                );
                             });
                         }
                         resp

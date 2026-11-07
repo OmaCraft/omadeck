@@ -59,17 +59,12 @@ pub(crate) fn blend(a: Color32, b: Color32, amount: f32) -> Color32 {
     Color32::from_rgb(mix(a.r(), b.r()), mix(a.g(), b.g()), mix(a.b(), b.b()))
 }
 
-/// Validated font bytes are discovered/read by the worker, never by an egui frame.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct FontFace {
-    pub bytes: std::sync::Arc<Vec<u8>>,
-    pub index: u32,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Snapshot {
     pub palette: Option<Palette>,
-    pub fonts: Option<(FontFace, FontFace)>,
+    /// System faces (UI stack and mono) for the font tokens, detected by a worker, never by an
+    /// egui frame. They back the mono token and "Use system font"; chrome stays Inter otherwise.
+    pub fonts: Option<omacraft_ui::SystemFaces>,
 }
 
 /// Owns a bounded latest-value slot, so a sleeping/minimized UI cannot accumulate updates.
@@ -79,6 +74,9 @@ pub(crate) struct Watcher {
     last: Snapshot,
     #[cfg(target_os = "linux")]
     worker: Option<native::Worker>,
+    /// macOS and Windows: one detection of the system faces on a worker thread.
+    #[cfg(all(not(target_os = "linux"), not(target_arch = "wasm32")))]
+    system: Option<std::sync::mpsc::Receiver<omacraft_ui::SystemFaces>>,
 }
 
 impl Watcher {
@@ -107,7 +105,26 @@ impl Watcher {
                 self.last = snapshot;
             }
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(all(not(target_os = "linux"), not(target_arch = "wasm32")))]
+        if self.enabled {
+            if self.system.is_none() {
+                let (tx, rx) = std::sync::mpsc::sync_channel(1);
+                let wake = ctx.clone();
+                let spawned = std::thread::Builder::new().name("omadeck-fonts".into()).spawn(move || {
+                    let _ = tx.send(omacraft_ui::SystemFaces::detect());
+                    wake.request_repaint();
+                });
+                // Resource exhaustion must not retry spawning once per rendered frame.
+                match spawned {
+                    Ok(_) => self.system = Some(rx),
+                    Err(_) => self.enabled = false,
+                }
+            }
+            if let Some(faces) = self.system.as_ref().and_then(|rx| rx.try_recv().ok()) {
+                self.last.fonts = Some(faces);
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
         let _ = (ctx, self.enabled);
         self.last.clone()
     }

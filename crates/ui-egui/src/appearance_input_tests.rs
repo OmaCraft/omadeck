@@ -27,18 +27,24 @@ fn title_text(app: &SlideApp) -> String {
     app.session.active().unwrap().doc.slides[0].shapes[0].text.as_ref().unwrap().text()
 }
 
+/// A system UI face arrives from the worker while "Use system font" is on.
 fn queue_desktop_font(h: &mut egui_kittest::Harness<'static, SlideApp>) {
-    let definitions = theme::font_definitions(&[]);
-    let data = definitions.font_data.values().next().unwrap();
-    let face = omarchy::FontFace { bytes: std::sync::Arc::new(data.bytes().to_vec()), index: data.index };
+    let face = omacraft_ui::fonts::SystemFace {
+        family: "Test Sans".into(),
+        path: "/test/TestSans-Regular.ttf".into(),
+        index: 0,
+        data: std::sync::Arc::new(omacraft_ui::fonts::INTER_REGULAR.to_vec()),
+    };
     let palette = omarchy::Palette::parse("background='#101020'\nforeground='#eeeeff'\naccent='#bbaaee'", false).unwrap();
-    h.state_mut().appearance = omarchy::Watcher::fixed_snapshot(omarchy::Snapshot { palette: Some(palette), fonts: Some((face.clone(), face)) });
+    let fonts = omacraft_ui::SystemFaces { ui: vec![face], ..Default::default() };
+    h.state_mut().ui.use_system_font = true;
+    h.state_mut().appearance = omarchy::Watcher::fixed_snapshot(omarchy::Snapshot { palette: Some(palette), fonts: Some(fonts) });
 }
 
 fn desktop_font_installed(ctx: &egui::Context) -> bool {
     let mut definitions = theme::font_definitions(&[]);
     appearance::fonts(ctx, &mut definitions);
-    definitions.families[&FontFamily::Name("omadeck-ui".into())].first().is_some_and(|name| name == "omadeck-desktop-regular")
+    definitions.families[&FontFamily::Proportional].first().is_some_and(|name| name.contains("TestSans"))
 }
 
 fn leave_editor_and_apply(h: &mut egui_kittest::Harness<'static, SlideApp>) {

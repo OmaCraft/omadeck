@@ -51,8 +51,13 @@ pub enum ViewMode {
 #[serde(default, rename_all = "camelCase")]
 pub struct UiState {
     pub brightness: theme::Brightness,
-    /// Follow Omarchy/desktop chrome; never modifies presentation styles.
+    /// Follow Omarchy/desktop chrome colours; never modifies presentation styles.
     pub follow_desktop: bool,
+    /// "Use system font" for chrome text instead of the bundled Inter. Off by default. Alpha 3
+    /// tied chrome fonts to `follow_desktop` (on by default) and stored no font option of its own,
+    /// so there is nothing to migrate: carrying `follow_desktop` over would turn this on for
+    /// nearly everyone.
+    pub use_system_font: bool,
     pub tab: String,
     pub ribbon_collapsed: bool,
     pub view: ViewMode,
@@ -103,6 +108,7 @@ impl Default for UiState {
         UiState {
             brightness: theme::Brightness::Light,
             follow_desktop: true,
+            use_system_font: false,
             tab: "Home".into(),
             ribbon_collapsed: false,
             view: ViewMode::Normal,
@@ -142,6 +148,12 @@ impl UiState {
     /// hand-edited one must not stop the window from opening. A zoom of 10,000 % asked the
     /// renderer for a texture larger than memory at start-up; panel sizes, scales and names are
     /// brought into range the same way, and the recent list is cut to its usual length.
+    /// The OmaCraft font options. Only an explicit stored "Use system font" counts (see
+    /// [`UiState::use_system_font`]); there is no older Deck font key to migrate.
+    pub fn font_options(&self) -> omacraft_ui::FontOptions {
+        omacraft_ui::FontOptions { use_system_font: self.use_system_font }
+    }
+
     pub fn sanitized(mut self) -> UiState {
         let d = UiState::default();
         let within = |v: f32, lo: f32, hi: f32, default: f32| if v.is_finite() { v.clamp(lo, hi) } else { default };

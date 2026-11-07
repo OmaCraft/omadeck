@@ -395,7 +395,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
                 // page past the right margin and clip the tiles (#1421).
                 let max_w = if matches!(bs.page, Page::Info | Page::Print | Page::Export) { WIDE_CONTENT_W } else { CONTENT_W };
                 ui.set_max_width(ui.available_width().min(max_w));
-                ui.label(RichText::new(bs.page.label()).font(theme::font(28.0)).color(t.text));
+                ui.label(RichText::new(bs.page.label()).font(omacraft_ui::Role::DisplayL.font()).color(t.text));
                 ui.add_space(18.0);
                 // Errors raised on a backstage page (a missing recent file, a failed open) would
                 // otherwise vanish: the status bar only draws once the backstage is closed (#172).

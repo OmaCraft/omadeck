@@ -80,7 +80,11 @@ pub(super) fn theme_colors_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialo
         });
     });
     d.fields.insert("schemeName".into(), name);
-    ui.label(egui::RichText::new("Applies to this presentation's theme colours.").size(11.0).color(Tokens::get(ui.ctx()).text_dim));
+    ui.label(
+        egui::RichText::new("Applies to this presentation's theme colours.")
+            .font(omacraft_ui::Role::Caption.font())
+            .color(Tokens::get(ui.ctx()).text_dim),
+    );
     let (ok, cancel) = buttons(ui, "Save");
     if ok {
         match theme_color_payload(d) {

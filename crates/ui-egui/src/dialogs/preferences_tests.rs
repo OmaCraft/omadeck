@@ -140,11 +140,26 @@ fn preferences_explain_ui_fonts_and_separate_app_multiplier_from_os_scale() {
     open_options(&mut h);
 
     assert!(h
-        .query_by_label("Follow desktop appearance also follows desktop chrome fonts. Turn it off to use OmaDeck's built-in UI colors and fonts. Slide and document fonts are unchanged.")
+        .query_by_label("Follow desktop appearance follows the desktop's colors only. The interface uses OmaDeck's built-in font, Inter; turn on Use system font to use the desktop's interface font instead. Slide and document fonts are unchanged.")
         .is_some());
     let expected = match h.ctx.native_pixels_per_point().filter(|value| value.is_finite() && *value > 0.0) {
         Some(os) => format!("Interface multiplier: 1.25× · OS display scale: {os:.2}×"),
         None => "Interface multiplier: 1.25× · OS display scale: unavailable".to_string(),
     };
     assert!(h.query_by_label(&expected).is_some(), "the readout reports both scales: {expected}");
+}
+
+/// "Use system font" is off by default, applies as it is toggled, and Cancel puts it back.
+#[test]
+fn use_system_font_is_off_by_default_and_cancel_restores_it() {
+    let mut h = harness();
+    assert!(!h.state().ui.use_system_font, "chrome uses the bundled Inter by default");
+    open_options(&mut h);
+    h.query_by_label("Use system font").expect("the switch is there").click();
+    h.run_steps(2);
+    assert!(h.state().ui.use_system_font, "the switch applies as it is toggled");
+    assert!(h.state().ui.font_options().use_system_font);
+    h.query_by_label("Cancel").expect("the Cancel button is there").click();
+    h.run_steps(2);
+    assert!(!h.state().ui.use_system_font, "Cancel restores the font setting");
 }

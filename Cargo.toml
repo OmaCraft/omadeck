@@ -62,6 +62,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 craft-media = { git = "https://github.com/storytold/craft-libs", rev = "c5a1cbfb5f9049f9270955caffb5bee5997aebf7", version = "=0.1.0", default-features = false }
 craft-pdf = { git = "https://github.com/storytold/craft-libs", rev = "c5a1cbfb5f9049f9270955caffb5bee5997aebf7", version = "=0.1.0", default-features = false, features = ["write", "write-simple-text"] }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "c5a1cbfb5f9049f9270955caffb5bee5997aebf7", version = "=0.1.0" }
+# OmaCraft suite chrome (fonts, type scale); its egui resolves through [patch.crates-io] below.
+omacraft-ui = { git = "https://github.com/OmaCraft/omacraft-ui", rev = "e2cea2b3ebd238ca518871f1bea3f96b8842d98e" }
 i_overlay = "9"
 quick-xml = "0.41"
 zip = { version = "3", default-features = false, features = ["deflate"] }

@@ -65,7 +65,7 @@ pub(super) fn date_time_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) 
     });
     ui.label(
         egui::RichText::new("Month names and AM/PM are listed for English. Other languages list the numeric date and 24-hour time.")
-            .size(11.0)
+            .font(omacraft_ui::Role::Caption.font())
             .color(Tokens::get(ui.ctx()).text_dim),
     );
     let update = check(ui, d, "Update automatically", "update", true);

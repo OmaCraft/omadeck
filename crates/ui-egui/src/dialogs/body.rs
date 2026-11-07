@@ -20,6 +20,7 @@ use super::theme_fonts::theme_fonts_dialog;
 use super::trim::{seconds_text_to_ms, trim_seed};
 use super::zoom::zoom_dialog;
 use super::{Dialog, SlideApp, Tokens, Ui, Value, buttons, check, field, field_of, json, num, theme, vec2};
+use omacraft_ui::Role;
 
 /// Returns true when the dialog should close.
 pub(super) fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
@@ -862,7 +863,7 @@ fn dlg_symbol(app: &mut SlideApp, ui: &mut Ui, _d: &mut Dialog) -> bool {
         ("Shapes", "■□▪▫▲△▶▷▼▽◀◁◆◇○●◎★☆✓✔✗✘♠♣♥♦"),
     ];
     for (g, chars) in groups {
-        ui.label(egui::RichText::new(g).font(theme::bold(12.0)));
+        ui.label(egui::RichText::new(g).font(Role::Section.font()));
         ui.horizontal_wrapped(|ui| {
             for c in chars.chars() {
                 if ui.add(egui::Button::new(egui::RichText::new(c.to_string()).size(16.0)).min_size(vec2(26.0, 26.0))).clicked() {
@@ -881,7 +882,7 @@ fn dlg_symbol(app: &mut SlideApp, ui: &mut Ui, _d: &mut Dialog) -> bool {
 fn dlg_equation(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     ui.label("Type an equation in linear form (e.g. a^2+b^2=c^2, x=(-b±√(b^2-4ac))/2a).");
     let mut v = d.get("eq", "");
-    ui.add(egui::TextEdit::singleline(&mut v).hint_text("Equation").desired_width(340.0).font(theme::font(15.0)));
+    ui.add(egui::TextEdit::singleline(&mut v).hint_text("Equation").desired_width(340.0).font(Role::Mono.font()));
     d.fields.insert("eq".into(), v.clone());
     let (ok, cancel) = buttons(ui, "Insert");
     if ok && !v.is_empty() {
@@ -927,10 +928,12 @@ fn dlg_spelling(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let info = app.session.execute("review.dictionary", &json!({})).unwrap_or_default();
     let available = info.get("available").and_then(Value::as_bool).unwrap_or(false);
     match info.get("found").and_then(Value::as_str) {
-        Some(f) if available => ui.label(egui::RichText::new(format!("Dictionary: {}", f.rsplit(['/', '\\']).next().unwrap_or(f))).small().weak()),
-        _ if available => {
-            ui.label(egui::RichText::new(format!("Dictionary: {}", info.get("lang").and_then(Value::as_str).unwrap_or(""))).small().weak())
+        Some(f) if available => {
+            ui.label(egui::RichText::new(format!("Dictionary: {}", f.rsplit(['/', '\\']).next().unwrap_or(f))).font(Role::Caption.font()).weak())
         }
+        _ if available => ui.label(
+            egui::RichText::new(format!("Dictionary: {}", info.get("lang").and_then(Value::as_str).unwrap_or(""))).font(Role::Caption.font()).weak(),
+        ),
         _ => ui.label(
             egui::RichText::new(format!(
                 "No {} dictionary is installed, so only common misspellings are found. Put a Hunspell .aff/.dic pair in {}.",
@@ -941,7 +944,7 @@ fn dlg_spelling(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                     .and_then(Value::as_str)
                     .unwrap_or("a dictionaries folder")
             ))
-            .small()
+            .font(Role::Caption.font())
             .weak(),
         ),
     };
@@ -1125,7 +1128,7 @@ fn dlg_language(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         }
     });
     ui.add_space(4.0);
-    ui.label(egui::RichText::new("Spelling is checked for languages marked (dictionary).").small().weak());
+    ui.label(egui::RichText::new("Spelling is checked for languages marked (dictionary).").font(Role::Caption.font()).weak());
     if ui.checkbox(&mut no_proof, "Do not check spelling or grammar").changed() {
         d.fields.insert("noProof".into(), if no_proof { "1".into() } else { String::new() });
     }
@@ -1340,7 +1343,7 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     if d.params.get("before").is_none() {
         d.params = json!({ "before": preferences_snapshot(app) });
     }
-    ui.label(egui::RichText::new("General").font(theme::bold(13.0)));
+    ui.label(egui::RichText::new("General").font(Role::Section.font()));
     let mut follow = app.ui.follow_desktop;
     if ui.checkbox(&mut follow, "Follow desktop appearance").changed() {
         let _ = app.run("view.systemTheme", json!({"on": follow}));
@@ -1349,10 +1352,12 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     if ui.checkbox(&mut dark, "Dark appearance").changed() {
         let _ = app.run("view.dark", json!({"on": dark}));
     }
+    // OmaCraft: one font switch, independent of the desktop colours (DECK-UX-001).
+    ui.checkbox(&mut app.ui.use_system_font, "Use system font");
     ui.add(
         egui::Label::new(egui::RichText::new(
-            "Follow desktop appearance also follows desktop chrome fonts. Turn it off to use OmaDeck's built-in UI colors and fonts. Slide and document fonts are unchanged.",
-        ).small().weak()).wrap(),
+            "Follow desktop appearance follows the desktop's colors only. The interface uses OmaDeck's built-in font, Inter; turn on Use system font to use the desktop's interface font instead. Slide and document fonts are unchanged.",
+        ).font(Role::Caption.font()).weak()).wrap(),
     );
     // While the pointer holds the slider its value only waits in the dialog: applying it
     // would rescale the slider under the pointer and run it to an end (#767). It applies
@@ -1365,7 +1370,7 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         Some(os) => format!("Interface multiplier: {scale:.2}× · OS display scale: {os:.2}×"),
         None => format!("Interface multiplier: {scale:.2}× · OS display scale: unavailable"),
     };
-    ui.label(egui::RichText::new(scale_note).small().weak());
+    ui.label(egui::RichText::new(scale_note).font(Role::Caption.font()).weak());
     // No visible slider label here (the row is laid out to fit); the accessible name only.
     let enabled = r.enabled();
     r.widget_info(|| egui::WidgetInfo::slider(enabled, f64::from(scale), "Interface size"));
@@ -1386,7 +1391,7 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         ui.radio_value(units, deckcraft_geom::Unit::Inches, "Inches");
         ui.radio_value(units, deckcraft_geom::Unit::Centimeters, "Centimeters");
     });
-    ui.label(egui::RichText::new("Editing").font(theme::bold(13.0)));
+    ui.label(egui::RichText::new("Editing").font(Role::Section.font()));
     ui.checkbox(&mut app.session.prefs.smart_guides, "Show smart guides");
     ui.checkbox(&mut app.session.prefs.snap_to_grid, "Snap objects to grid");
     ui.checkbox(&mut app.session.prefs.smart_quotes, "Replace straight quotes with smart quotes");

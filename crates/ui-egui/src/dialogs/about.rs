@@ -1,4 +1,4 @@
-use super::{Color32, CornerRadius, Rect, Sense, SlideApp, Stroke, Tokens, Ui, pos2, theme, vec2};
+use super::{Color32, CornerRadius, Rect, Sense, SlideApp, Stroke, Tokens, Ui, pos2, vec2};
 
 /// Room the About credits need for their table; the About tab keeps its compact size.
 pub(super) const CREDITS_SIZE: egui::Vec2 = vec2(640.0, 380.0);
@@ -20,7 +20,7 @@ pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
     ui.vertical_centered(|ui| {
         let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
         paint_logo(ui.painter(), r);
-        ui.label(egui::RichText::new("OmaDeck").font(theme::bold(22.0)));
+        ui.label(egui::RichText::new("OmaDeck").font(omacraft_ui::Role::DisplayL.font()));
         ui.label(egui::RichText::new(version_line()).color(t.text_dim));
         ui.add_space(6.0);
         ui.label("OmaDeck development • based on DeckCraft v0.12.0 (29f0f777)");
@@ -30,7 +30,11 @@ pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
 
         ui.hyperlink_to("Upstream DeckCraft source", deckcraft_engine::links::GITHUB);
         ui.add_space(6.0);
-        ui.label(egui::RichText::new("MIT OR Apache-2.0 · © 2026 ArtCraft Team and the DeckCraft contributors").size(11.0).color(t.text_faint));
+        ui.label(
+            egui::RichText::new("MIT OR Apache-2.0 · © 2026 ArtCraft Team and the DeckCraft contributors")
+                .font(omacraft_ui::Role::Caption.font())
+                .color(t.text_faint),
+        );
     });
 }
 

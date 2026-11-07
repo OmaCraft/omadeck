@@ -1,4 +1,4 @@
-use super::{Align2, Color32, CornerRadius, Point, Pos2, Rect, Sense, SlideApp, Stroke, Tokens, Ui, Xf, json, pos2, theme, vec2};
+use super::{Align2, Color32, CornerRadius, Point, Pos2, Rect, Sense, SlideApp, Stroke, Tokens, Ui, Xf, json, pos2, vec2};
 
 /// The ruler's numbered step in points and the ticks per step: quarter inches, or half
 /// centimetres. Any other unit (only a hand-edited `prefs.json` gives one) keeps inches, since a
@@ -35,7 +35,13 @@ pub(super) fn ruler(p: &egui::Painter, avail: Rect, slide: Rect, scale: f32, uni
         let h = len(k);
         p.line_segment([pos2(x, top.max.y - h), pos2(x, top.max.y)], Stroke::new(1.0, t.text_faint));
         if k.is_multiple_of(sub) {
-            p.text(pos2(x + 2.0, top.min.y + 1.0), Align2::LEFT_TOP, format!("{}", k / sub), theme::font(8.0), t.text_dim);
+            p.text(
+                pos2(x + 2.0, top.min.y + 1.0),
+                Align2::LEFT_TOP,
+                format!("{}", k / sub),
+                egui::FontId::new(8.0, omacraft_ui::Face::Numeric.family()),
+                t.text_dim,
+            );
         }
         k += 1;
     }

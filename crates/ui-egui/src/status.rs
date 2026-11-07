@@ -28,7 +28,7 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
         let p = ui.painter();
         // Left to right: slide counter, language, status message. Each starts at its usual column, or
         // after the one before it when that runs long ("Slide 100 of 120", "… (not checked)").
-        let sr = p.text(pos2(rect.min.x + STATUS_MARGIN, rect.center().y), Align2::LEFT_CENTER, &left, theme::font(STATUS_FONT), t.text_dim);
+        let sr = p.text(pos2(rect.min.x + STATUS_MARGIN, rect.center().y), Align2::LEFT_CENTER, &left, omacraft_ui::Role::Numeric.font(), t.text_dim);
         shown_text(ui, sr, "status_slide", &left);
         // Where the controls on the right begin; nothing on the left paints or clicks past it.
         let right_x = rect.max.x - 560.0;
@@ -64,8 +64,9 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
             app.ui.zoom = None;
         }
         let pct = (app.canvas_scale * 100.0).round();
-        let lbl = right
-            .add(egui::Label::new(egui::RichText::new(format!("{pct}%")).font(theme::font(STATUS_FONT)).color(t.text_dim)).sense(Sense::click()));
+        let lbl = right.add(
+            egui::Label::new(egui::RichText::new(format!("{pct}%")).font(omacraft_ui::Role::Numeric.font()).color(t.text_dim)).sense(Sense::click()),
+        );
         lbl.widget_info(|| named_with_value("Zoom level", &format!("{pct}%")));
         if lbl.clicked() {
             let _ = app.run("view.zoomDialog", json!({}));

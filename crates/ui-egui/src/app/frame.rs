@@ -14,8 +14,9 @@ impl SlideApp {
             self.restyle |= self.ui.brightness != brightness;
             self.ui.brightness = brightness;
         }
-        let (style_changed, fonts_changed) =
-            crate::appearance::refresh(ctx, palette, snapshot.fonts.filter(|_| self.ui.follow_desktop), self.chrome_font_reload_is_idle(ctx));
+        // Fonts do not follow the desktop colours: chrome is Inter unless "Use system font" is on.
+        let fonts = crate::appearance::ChromeFonts { options: self.ui.font_options(), system: snapshot.fonts.unwrap_or_default() };
+        let (style_changed, fonts_changed) = crate::appearance::refresh(ctx, palette, fonts, self.chrome_font_reload_is_idle(ctx));
         self.restyle |= style_changed;
         if fonts_changed {
             self.styled = false;

@@ -1,7 +1,16 @@
 //! Transient UI-only appearance. The presentation/font database/renderers are never modified.
-use crate::omarchy::{FontFace, Palette, blend};
+use crate::omarchy::{Palette, blend};
 use crate::theme::Tokens;
-use egui::{Color32, FontData, FontDefinitions, FontFamily};
+use egui::{Color32, FontDefinitions, FontFamily};
+use omacraft_ui::{Face, FontOptions, SystemFaces};
+
+/// What the chrome font tokens are built from: the "Use system font" switch and the system faces
+/// the appearance worker found (none in tests and on the web).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct ChromeFonts {
+    pub options: FontOptions,
+    pub system: SystemFaces,
+}
 
 fn palette_id() -> egui::Id {
     egui::Id::unique("omadeck.appearance.palette")
@@ -10,9 +19,9 @@ fn fonts_id() -> egui::Id {
     egui::Id::unique("omadeck.appearance.fonts")
 }
 
-pub(crate) fn refresh(ctx: &egui::Context, palette: Option<Palette>, fonts: Option<(FontFace, FontFace)>, allow_fonts: bool) -> (bool, bool) {
+pub(crate) fn refresh(ctx: &egui::Context, palette: Option<Palette>, fonts: ChromeFonts, allow_fonts: bool) -> (bool, bool) {
     let old_palette = ctx.data(|d| d.get_temp::<Palette>(palette_id()));
-    let old_fonts = ctx.data(|d| d.get_temp::<(FontFace, FontFace)>(fonts_id()));
+    let old_fonts = ctx.data(|d| d.get_temp::<ChromeFonts>(fonts_id())).unwrap_or_default();
     let changed = (old_palette != palette, allow_fonts && old_fonts != fonts);
     if changed.0 {
         ctx.data_mut(|d| {
@@ -24,13 +33,7 @@ pub(crate) fn refresh(ctx: &egui::Context, palette: Option<Palette>, fonts: Opti
         });
     }
     if changed.1 {
-        ctx.data_mut(|d| {
-            if let Some(f) = fonts {
-                d.insert_temp(fonts_id(), f);
-            } else {
-                d.remove::<(FontFace, FontFace)>(fonts_id());
-            }
-        });
+        ctx.data_mut(|d| d.insert_temp(fonts_id(), fonts));
     }
     changed
 }
@@ -87,16 +90,28 @@ fn readable(color: Color32, bg: Color32, minimum: f32) -> Color32 {
     target
 }
 
+/// Install the chrome font tokens into `defs` from the last [`refresh`].
 pub(crate) fn fonts(ctx: &egui::Context, defs: &mut FontDefinitions) {
-    let Some((normal, bold)) = ctx.data(|d| d.get_temp::<(FontFace, FontFace)>(fonts_id())) else { return };
-    for (name, face, family) in
-        [("omadeck-desktop-regular", normal, FontFamily::Name("omadeck-ui".into())), ("omadeck-desktop-bold", bold, FontFamily::Name("bold".into()))]
-    {
-        let mut data = FontData::from_owned((*face.bytes).clone());
-        data.index = face.index;
-        defs.font_data.insert(name.into(), std::sync::Arc::new(data));
-        defs.families.entry(family).or_default().insert(0, name.into());
-    }
+    let f = ctx.data(|d| d.get_temp::<ChromeFonts>(fonts_id())).unwrap_or_default();
+    install(defs, f.options, &f.system);
+}
+
+/// OmaCraft font tokens over DeckCraft's interface faces: bundled Inter for chrome
+/// (`Proportional`), Inter SemiBold for `bold`, Inter Tabular for numbers, Instrument Sans for
+/// display text, and the system mono only for `Monospace`. The craft-fonts script faces follow
+/// Inter, so no script draws as boxes. Slide text keeps its own families.
+pub(crate) fn install(defs: &mut FontDefinitions, options: FontOptions, system: &SystemFaces) {
+    let scripts: Vec<String> = defs
+        .families
+        .get(&FontFamily::Proportional)
+        .map(|list| list.iter().filter(|k| k.starts_with("craft-")).cloned().collect())
+        .unwrap_or_default();
+    let scripts: Vec<&str> = scripts.iter().map(String::as_str).collect();
+    omacraft_ui::fonts::apply(defs, options, system, &scripts);
+    // DeckCraft's own bold families follow the strong token.
+    let strong = defs.families.get(&Face::UiStrong.family()).cloned().unwrap_or_default();
+    defs.families.insert(FontFamily::Name("bold".into()), strong.clone());
+    defs.families.insert(FontFamily::Name("omadeck-document-bold".into()), strong);
 }
 
 #[cfg(test)]
@@ -106,7 +121,7 @@ mod tests {
     fn palette_changes_chrome_but_keeps_paper_interaction_tokens() {
         let ctx = egui::Context::default();
         let p = Palette::parse("background='#101020'\nforeground='#eeeeff'\naccent='#bbaaee'", false).unwrap();
-        assert_eq!(refresh(&ctx, Some(p), None, true), (true, false));
+        assert_eq!(refresh(&ctx, Some(p), ChromeFonts::default(), true), (true, false));
         let base = Tokens::light();
         let result = tokens(&ctx, base);
         assert_eq!(result.chrome, p.background);
@@ -114,18 +129,52 @@ mod tests {
         assert_eq!(result.guide, base.guide);
         assert_eq!(result.handle_fill, base.handle_fill);
         assert!(contrast(result.text, result.card) >= 4.5);
-        assert_eq!(refresh(&ctx, None, None, true), (true, false));
+        assert_eq!(refresh(&ctx, None, ChromeFonts::default(), true), (true, false));
         assert_eq!(tokens(&ctx, base).chrome, base.chrome);
     }
     #[test]
-    fn appearance_does_not_replace_document_proportional_font_chain() {
+    fn chrome_text_styles_resolve_to_inter_never_mono() {
         let ctx = egui::Context::default();
-        let face = FontFace { bytes: std::sync::Arc::new(vec![1, 2, 3]), index: 0 };
-        refresh(&ctx, None, Some((face.clone(), face)), true);
+        crate::theme::install_fonts(&ctx);
+        crate::theme::apply(&ctx, &Tokens::light());
+        let mut o = ctx.run_ui(Default::default(), |_| {});
+        o.textures_delta.clear();
+        let defs = crate::theme::font_definitions(&[]);
+        let style = ctx.global_style();
+        for text_style in [egui::TextStyle::Body, egui::TextStyle::Button, egui::TextStyle::Small, egui::TextStyle::Heading] {
+            let family = &style.text_styles[&text_style].family;
+            let first = defs.families[family].first().map(String::as_str);
+            assert!(first.is_some_and(|k| k.starts_with("omacraft/Inter")), "{text_style:?} starts with {first:?}");
+        }
+        for role in
+            [omacraft_ui::Role::Menu, omacraft_ui::Role::Body, omacraft_ui::Role::DialogTitle, omacraft_ui::Role::Section, omacraft_ui::Role::Caption]
+        {
+            assert_eq!(style.text_styles.get(&role.text_style()), Some(&role.font()), "{role:?} is registered");
+            assert!(defs.families[&role.font().family][0].starts_with("omacraft/Inter"), "{role:?}");
+        }
+        for font in [crate::theme::font(13.0), crate::theme::bold(13.0), crate::theme::document_bold(13.0)] {
+            assert!(defs.families[&font.family][0].starts_with("omacraft/Inter"), "{font:?}");
+        }
+        // Proportional, not mono: "iiii" is far narrower than "MMMM" in chrome text.
+        let width = |text: &str, font: egui::FontId| ctx.fonts_mut(|f| f.layout_no_wrap(text.into(), font, Color32::WHITE).size().x);
+        assert!(width("iiii", omacraft_ui::Role::Menu.font()) < width("MMMM", omacraft_ui::Role::Menu.font()) * 0.6);
+        assert!(width("iiii", crate::theme::font(13.0)) < width("MMMM", crate::theme::font(13.0)) * 0.6);
+        let mut o = ctx.run_ui(Default::default(), |_| {});
+        o.textures_delta.clear();
+    }
+    #[test]
+    fn use_system_font_moves_only_the_ui_tokens() {
+        let ctx = egui::Context::default();
+        let off = ChromeFonts::default();
+        assert!(!off.options.use_system_font, "off by default");
+        let on = ChromeFonts { options: FontOptions { use_system_font: true }, system: SystemFaces::default() };
+        assert_eq!(refresh(&ctx, None, on.clone(), true), (false, true));
+        assert_eq!(refresh(&ctx, None, on.clone(), true), (false, false), "no reinstall without a change");
+        assert_eq!(refresh(&ctx, None, off.clone(), false), (false, false), "deferred while input owns the pass");
         let mut defs = crate::theme::font_definitions(&[]);
-        let before = defs.families.get(&FontFamily::Proportional).cloned();
         fonts(&ctx, &mut defs);
-        assert_eq!(defs.families.get(&FontFamily::Proportional).cloned(), before);
-        assert_eq!(defs.families.get(&FontFamily::Name("omadeck-ui".into())).unwrap()[0], "omadeck-desktop-regular");
+        // With no system faces found, Inter stays the UI face; display never changes.
+        assert_eq!(defs.families[&FontFamily::Proportional][0], omacraft_ui::fonts::keys::INTER);
+        assert_eq!(defs.families[&Face::Display.family()][0], omacraft_ui::fonts::keys::DISPLAY);
     }
 }

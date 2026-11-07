@@ -162,14 +162,13 @@ pub fn apply(ctx: &egui::Context, t: &Tokens) {
     v.popup_shadow = egui::epaint::Shadow { offset: [0, 3], blur: 12, spread: 0, color: t.shadow };
     ctx.set_visuals(v);
     ctx.global_style_mut(|s| {
+        // OmaCraft type scale: Body/Button 13, Small 11, Heading bold 18, Monospace 12, plus the
+        // named roles (menu, dialog_title, section, caption, numeric…). Deck keeps its own
+        // spacing and 22 px control height below.
+        omacraft_ui::scale::apply(s);
         s.spacing.item_spacing = egui::vec2(6.0, 4.0);
         s.spacing.button_padding = egui::vec2(6.0, 3.0);
         s.spacing.interact_size.y = 22.0;
-        s.text_styles.insert(egui::TextStyle::Body, font(13.0));
-        s.text_styles.insert(egui::TextStyle::Button, font(13.0));
-        s.text_styles.insert(egui::TextStyle::Small, font(11.0));
-        s.text_styles.insert(egui::TextStyle::Heading, bold(18.0));
-        s.text_styles.insert(egui::TextStyle::Monospace, egui::FontId::monospace(12.0));
     });
 }
 
@@ -182,18 +181,26 @@ pub fn install_fonts(ctx: &egui::Context) {
 /// installed or embedded faces that draw text the interface faces lack (Hangul, Simplified
 /// Chinese, Devanagari…, #101). See [`crate::uifonts`].
 pub fn install_fonts_with(ctx: &egui::Context, extra: &[std::sync::Arc<deckcraft_fonts::FontFace>]) {
-    let mut defs = font_definitions(extra);
+    let mut defs = interface_faces(extra);
     crate::appearance::fonts(ctx, &mut defs);
     ctx.set_fonts(defs);
 }
 
-/// The interface font definitions; see [`install_fonts_with`].
+/// The interface font definitions with the default OmaCraft font tokens (bundled Inter, no
+/// system faces); see [`install_fonts_with`].
 pub fn font_definitions(extra: &[std::sync::Arc<deckcraft_fonts::FontFace>]) -> FontDefinitions {
+    let mut defs = interface_faces(extra);
+    crate::appearance::install(&mut defs, omacraft_ui::FontOptions::default(), &omacraft_ui::SystemFaces::default());
+    defs
+}
+
+/// DeckCraft's interface faces before the OmaCraft tokens go on top (`crate::appearance::install`).
+fn interface_faces(extra: &[std::sync::Arc<deckcraft_fonts::FontFace>]) -> FontDefinitions {
     let mut defs = FontDefinitions::default();
     let mut names = vec![];
     for (i, f) in deckcraft_fonts::CRAFT_FONTS.iter().enumerate() {
-        let wanted = (f.family == "Inter" && (f.style == "Regular" || f.style == "SemiBold" || f.style == "Bold"))
-            || (f.family == "BIZ UDPGothic" && f.style == "Regular")
+        // OmaCraft: Inter comes from omacraft-ui (one pinned copy for the suite), not craft-fonts.
+        let wanted = (f.family == "BIZ UDPGothic" && f.style == "Regular")
             // Exact craft-fonts family names: the Korean face is "NanumGothic" (no space), and
             // the symbol faces are "Noto Sans Symbols" / "Noto Sans Symbols 2". A near-miss here
             // would leave Hangul and the ◉ laser toggle without a glyph. Hebrew backs the
@@ -229,7 +236,6 @@ pub fn font_definitions(extra: &[std::sync::Arc<deckcraft_fonts::FontFace>]) -> 
         }
     }
     add_fallback_faces(&mut defs, extra);
-    defs.families.insert(FontFamily::Name("omadeck-ui".into()), defs.families.get(&FontFamily::Proportional).cloned().unwrap_or_default());
     // The Japanese interface face (the first one when Inter isn't embedded) hints its en and em
     // dashes, bars thinner than a pixel, down to nothing, so they drew as gaps in interface text;
     // unhinted, they draw.
@@ -240,8 +246,6 @@ pub fn font_definitions(extra: &[std::sync::Arc<deckcraft_fonts::FontFace>]) -> 
             *d = std::sync::Arc::new(data);
         }
     }
-    defs.families
-        .insert(FontFamily::Name("omadeck-document-bold".into()), defs.families.get(&FontFamily::Name("bold".into())).cloned().unwrap_or_default());
     defs
 }
 
@@ -270,7 +274,7 @@ pub fn document_bold(size: f32) -> egui::FontId {
 }
 
 pub fn font(size: f32) -> egui::FontId {
-    egui::FontId::new(size, FontFamily::Name("omadeck-ui".into()))
+    egui::FontId::proportional(size)
 }
 
 pub fn to_color32(c: deckcraft_color::Rgba) -> Color32 {

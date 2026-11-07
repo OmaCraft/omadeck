@@ -4,6 +4,7 @@ use super::{Dialog, SlideApp, Value, json, theme};
 pub(super) fn preferences_snapshot(app: &SlideApp) -> Value {
     json!({
         "followDesktop": app.ui.follow_desktop,
+        "useSystemFont": app.ui.use_system_font,
         "dark": app.ui.brightness == theme::Brightness::Dark,
         "uiScale": app.ui.ui_scale,
         "prefs": serde_json::to_value(&app.session.prefs).unwrap_or(Value::Null),
@@ -20,6 +21,9 @@ pub(super) fn restore_preferences(app: &mut SlideApp, d: &Dialog) {
     }
     if let Some(follow) = before.get("followDesktop").and_then(Value::as_bool) {
         let _ = app.run("view.systemTheme", json!({"on": follow}));
+    }
+    if let Some(system_font) = before.get("useSystemFont").and_then(Value::as_bool) {
+        app.ui.use_system_font = system_font;
     }
     if let Some(scale) = before.get("uiScale").and_then(Value::as_f64) {
         app.ui.ui_scale = scale as f32;

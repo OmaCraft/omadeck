@@ -524,7 +524,13 @@ pub fn control_bar(ui: &mut Ui, rect: Rect, status: Option<&VoiceStatus>, clip: 
     // Time label on the right, timeline between.
     let label = clock(pos);
     let label_w = 64.0;
-    painter.text(pos2(rect.max.x - 6.0, rect.center().y), Align2::RIGHT_CENTER, label, egui::FontId::monospace(11.0), white);
+    painter.text(
+        pos2(rect.max.x - 6.0, rect.center().y),
+        Align2::RIGHT_CENTER,
+        label,
+        egui::FontId::new(11.0, omacraft_ui::Face::Numeric.family()),
+        white,
+    );
     let track = Rect::from_min_max(pos2(x + 6.0, rect.center().y - 3.0), pos2(rect.max.x - label_w - 6.0, rect.center().y + 3.0));
     if track.width() > 10.0 {
         painter.rect_filled(track, CornerRadius::same(3), Color32::from_gray(90));

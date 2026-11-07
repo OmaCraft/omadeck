@@ -5,7 +5,7 @@ use egui::{Align2, CornerRadius, Margin, Stroke, vec2};
 
 use crate::SlideApp;
 use crate::icons::{self, Icon};
-use crate::theme::{self, Tokens};
+use crate::theme::Tokens;
 
 /// How long a toast stays, in milliseconds.
 const SHOW_MS: f64 = 8000.0;
@@ -59,7 +59,7 @@ pub fn show(app: &mut SlideApp, ctx: &egui::Context) {
             .show(ui, |ui| {
                 ui.set_max_width(520.0);
                 ui.horizontal(|ui| {
-                    ui.add(egui::Label::new(egui::RichText::new(&text).font(theme::font(13.0)).color(t.text)).wrap());
+                    ui.add(egui::Label::new(egui::RichText::new(&text).font(omacraft_ui::Role::Body.font()).color(t.text)).wrap());
                     let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), egui::Sense::click());
                     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Close"));
                     if resp.hovered() {
