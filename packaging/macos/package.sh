@@ -117,7 +117,7 @@ echo "==> assembling $APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Executable and icon carry the display name (CFBundleExecutable / CFBundleIconFile).
 cp "$WORK/bin/deckcraft" "$APP/Contents/MacOS/DeckCraft"
-cp "$ROOT/assets/app-icon/deckcraft.icns" "$APP/Contents/Resources/DeckCraft.icns"
+cp "$ROOT/assets/omadeck-icon/omadeck.icns" "$APP/Contents/Resources/DeckCraft.icns"
 # The licences and README, as in the CLI zip, plus the licences of the embedded craft-fonts
 # fonts when built with CRAFT_FONTS_DIR. Before signing, so the seal covers them.
 copy_docs "$APP/Contents/Resources"

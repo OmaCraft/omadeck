@@ -1,13 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-<rect x="8" y="8" width="240" height="240" rx="52" fill="#4D2536"/>
-<rect x="16" y="16" width="224" height="224" rx="45" fill="#923F58"/>
-<rect x="24" y="24" width="208" height="208" rx="38" fill="#4D2536"/>
-<rect x="59" y="48" width="144" height="168" rx="18" fill="#101722"/>
-<polygon points="52,42 151,42 194,85 194,202 52,202" fill="#FAF6EB"/>
-<polygon points="151,42 151,85 194,85" fill="#F2A5A8"/>
-<rect x="69" y="103" width="108" height="71" rx="7" fill="#923F58"/>
-<rect x="82" y="142" width="17" height="19" fill="#FAF6EB"/>
-<rect x="107" y="128" width="17" height="33" fill="#F2A5A8"/>
-<rect x="132" y="115" width="17" height="46" fill="#FAF6EB"/>
-<rect x="102" y="183" width="42" height="6" rx="3" fill="#923F58"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#343A47"/><stop offset="1" stop-color="#1E222A"/></linearGradient><linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF24"/><stop offset="1" stop-color="#FFFFFF00"/></linearGradient><clipPath id="clip"><path d="M168,48 H772 L976,252 V856 A120,120 0 0 1 856,976 H168 A120,120 0 0 1 48,856 V168 A120,120 0 0 1 168,48 Z"/></clipPath><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF5C6E"/><stop offset="1" stop-color="#E4425B"/></linearGradient></defs><path d="M168,48 H772 L976,252 V856 A120,120 0 0 1 856,976 H168 A120,120 0 0 1 48,856 V168 A120,120 0 0 1 168,48 Z" fill="url(#tile)"/><polygon points="489.2,-234.8 1258.8,534.8 1230.6,563.1 460.9,-206.6" fill="#FF5C6E" clip-path="url(#clip)"/><path d="M168,48 H772 L976,252 V856 A120,120 0 0 1 856,976 H168 A120,120 0 0 1 48,856 V168 A120,120 0 0 1 168,48 Z" fill="none" stroke="url(#edge)" stroke-width="16" clip-path="url(#clip)"/><path d="M260,300 H716 L792,376 V587.0 A28,28 0 0 1 764,615.0 H260 A28,28 0 0 1 232,587.0 V328 A28,28 0 0 1 260,300 Z" fill="#563642"/><rect x="284" y="352" width="313.6" height="60" rx="12" fill="url(#g)"/><rect x="284" y="456" width="328.32" height="40" rx="10" fill="url(#g)" opacity=".8"/><rect x="284" y="520" width="228.0" height="40" rx="10" fill="url(#g)" opacity=".8"/><rect x="412" y="663.0" width="200" height="48" rx="14" fill="url(#g)"/></svg>

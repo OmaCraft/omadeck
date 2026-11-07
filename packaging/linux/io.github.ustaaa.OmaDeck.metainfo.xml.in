@@ -38,8 +38,8 @@
     <keyword>pptx</keyword>
   </keywords>
   <branding>
-    <color type="primary" scheme_preference="light">#ffc9a8</color>
-    <color type="primary" scheme_preference="dark">#b8471f</color>
+    <color type="primary" scheme_preference="light">#FF5C6E</color>
+    <color type="primary" scheme_preference="dark">#1E222A</color>
   </branding>
   <requires>
     <display_length compare="ge">760</display_length>
